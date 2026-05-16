@@ -4,7 +4,7 @@
   "description": "Save premium-model tokens by routing simple tasks to cheap OpenAI-compatible LLMs.",
   "type": "module",
   "bin": {
-    "cheap-llm-mcp": "./dist/index.js"
+    "cheap-llm-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
