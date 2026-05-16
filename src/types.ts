@@ -6,6 +6,8 @@ export type ProviderConfig = {
   chatPath?: string;
   apiKey?: string;
   apiKeyEnv?: string;
+  apiKeyHeader?: string;
+  apiKeyPrefix?: string;
   model: string;
   headers?: Record<string, string>;
   defaultBody?: Record<string, unknown>;

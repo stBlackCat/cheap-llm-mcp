@@ -11,7 +11,7 @@ Still worried about GPT Plus limits? Still watching your Claude subscription tok
 
 [中文文档](README.zh-CN.md)
 
-This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. It routes simple, low-risk, self-contained tasks to DeepSeek, Qwen, MiMo, or any OpenAI-compatible chat completions API. Your main AI still plans, reviews, edits, and decides. The cheap model just handles small drafts.
+This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. It routes simple, low-risk, self-contained tasks to tested DeepSeek and Xiaomi MiMo presets, or to a custom OpenAI-compatible chat completions API. Your main AI still plans, reviews, edits, and decides. The cheap model just handles small drafts.
 
 ## Quickstart
 
@@ -25,12 +25,14 @@ Then fill in one OpenAI-compatible endpoint:
 
 ```bash
 CHEAP_LLM_BASE_URL=https://api.deepseek.com
-CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_MODEL=deepseek-v4-flash
 CHEAP_LLM_API_KEY=sk-...
 CHEAP_LLM_CHAT_PATH=/chat/completions
+CHEAP_LLM_API_KEY_HEADER=Authorization
+CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-That is the whole model setup. DeepSeek, Qwen, MiMo, SiliconFlow, OpenRouter, local OpenAI-compatible gateways, and most other providers work the same way as long as they expose a chat completions compatible endpoint.
+That is the whole model setup. DeepSeek and Xiaomi MiMo are first-class presets. Other OpenAI-compatible providers may work when they expose a compatible chat completions endpoint and use a supported API-key header.
 
 Check your setup:
 
@@ -52,8 +54,10 @@ The setup wizard can run this after confirmation:
 claude mcp add --transport stdio --scope user \
   --env CHEAP_LLM_API_KEY=sk-... \
   --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
-  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_MODEL=deepseek-v4-flash \
   --env CHEAP_LLM_CHAT_PATH=/chat/completions \
+  --env CHEAP_LLM_API_KEY_HEADER=Authorization \
+  --env CHEAP_LLM_API_KEY_PREFIX=Bearer \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   cheap-llm -- npx -y cheap-llm-mcp@latest
@@ -73,8 +77,10 @@ The setup wizard can run this after confirmation:
 codex mcp add cheap-llm \
   --env CHEAP_LLM_API_KEY=sk-... \
   --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
-  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_MODEL=deepseek-v4-flash \
   --env CHEAP_LLM_CHAT_PATH=/chat/completions \
+  --env CHEAP_LLM_API_KEY_HEADER=Authorization \
+  --env CHEAP_LLM_API_KEY_PREFIX=Bearer \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   -- npx -y cheap-llm-mcp@latest
@@ -158,23 +164,34 @@ CHEAP_LLM_BASE_URL=https://your-provider.example/v1
 CHEAP_LLM_MODEL=your-cheap-model
 CHEAP_LLM_API_KEY=your-api-key
 CHEAP_LLM_CHAT_PATH=/chat/completions
+CHEAP_LLM_API_KEY_HEADER=Authorization
+CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-Examples:
+Tested presets:
 
 ```bash
 # DeepSeek
 CHEAP_LLM_BASE_URL=https://api.deepseek.com
-CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_MODEL=deepseek-v4-flash
 
-# Qwen compatible mode
-CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-CHEAP_LLM_MODEL=qwen-plus
+# Xiaomi MiMo
+CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1
+CHEAP_LLM_MODEL=mimo-v2.5-pro
 
 # Any other OpenAI-compatible gateway
 CHEAP_LLM_BASE_URL=https://example.com/v1
 CHEAP_LLM_MODEL=model-id
 ```
+
+DeepSeek uses `Authorization: Bearer ...` with `https://api.deepseek.com/chat/completions`. Xiaomi MiMo's OpenAI-compatible endpoint uses `https://api.xiaomimimo.com/v1/chat/completions`; its docs support `Authorization: Bearer ...`, and also document an `api-key` header. To switch to that form, set:
+
+```bash
+CHEAP_LLM_API_KEY_HEADER=api-key
+CHEAP_LLM_API_KEY_PREFIX=none
+```
+
+Reference docs: [DeepSeek API](https://api-docs.deepseek.com/zh-cn/) and [Xiaomi MiMo first API call](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call).
 
 Advanced users can still configure multiple named providers with `SIMPLE_LLM_PROVIDERS`, but the default path is one cheap OpenAI-compatible endpoint.
 

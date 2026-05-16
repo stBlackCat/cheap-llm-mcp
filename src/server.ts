@@ -8,7 +8,7 @@ import { allProviders, providerSetupStatus } from "./providers.js";
 import { maxPromptChars } from "./safety.js";
 
 export const SERVER_NAME = "cheap-llm-mcp";
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = "0.1.2";
 
 export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer {
   const server = new McpServer({
@@ -112,7 +112,7 @@ export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer
             type: "text",
             text: JSON.stringify(
               {
-                ok: providers.length > 0 && providers.every((provider) => provider.hasApiKey && provider.https),
+                ok: providers.some((provider) => provider.hasApiKey && provider.https),
                 safety: {
                   maxPromptChars: maxPromptChars(source),
                   sensitiveDataRejected: true,

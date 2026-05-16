@@ -1,5 +1,5 @@
 import { envNumber } from "./env.js";
-import { apiKeyFor, endpointFor, resolveProvider } from "./providers.js";
+import { apiKeyFor, authHeadersFor, endpointFor, resolveProvider } from "./providers.js";
 import { assertSafeToSend, buildMessages, redactError } from "./safety.js";
 import { recordUsage } from "./accounting.js";
 import type { AskSimpleModelInput, ChatCompletionResponse } from "./types.js";
@@ -58,9 +58,9 @@ export async function callChatCompletion(input: AskSimpleModelInput, source: Nod
     response = await fetch(endpointFor(provider), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        ...provider.headers
+        ...provider.headers,
+        ...authHeadersFor(provider, apiKey)
       },
       body: JSON.stringify(body),
       signal: controller.signal

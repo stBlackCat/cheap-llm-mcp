@@ -23,6 +23,16 @@ test("redacts API keys in displayed commands", () => {
   assert.equal(displayed.includes("CHEAP_LLM_API_KEY=<YOUR_API_KEY>"), true);
 });
 
+test("builds Xiaomi MiMo preset config", () => {
+  const command = buildCodexCommand({ preset: "mimo", apiKey: "mimo-test-key" });
+  const displayed = commandToString(command, { redactSecrets: true });
+  assert.equal(displayed.includes("CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_MODEL=mimo-v2.5-pro"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=Authorization"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=Bearer"), true);
+  assert.equal(displayed.includes("mimo-test-key"), false);
+});
+
 test("setup dry run can target both clients", () => {
   const commands = commandsForSetup({
     clients: ["claude", "codex"],

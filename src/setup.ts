@@ -3,12 +3,16 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
 type Client = "claude" | "codex";
+type ProviderPreset = "deepseek" | "mimo" | "custom";
 
 export type ProviderAnswers = {
+  preset?: ProviderPreset;
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   chatPath?: string;
+  apiKeyHeader?: string;
+  apiKeyPrefix?: string;
 };
 
 export type SetupOptions = ProviderAnswers & {
@@ -19,16 +23,42 @@ export type SetupOptions = ProviderAnswers & {
 const PACKAGE_SPEC = "cheap-llm-mcp@latest";
 const SERVER_NAME = "cheap-llm";
 const SECRET_PLACEHOLDER = "<YOUR_API_KEY>";
+const PROVIDER_PRESETS: Record<ProviderPreset, Required<Pick<ProviderAnswers, "baseUrl" | "model" | "chatPath" | "apiKeyHeader" | "apiKeyPrefix">>> = {
+  deepseek: {
+    baseUrl: "https://api.deepseek.com",
+    model: "deepseek-v4-flash",
+    chatPath: "/chat/completions",
+    apiKeyHeader: "Authorization",
+    apiKeyPrefix: "Bearer"
+  },
+  mimo: {
+    baseUrl: "https://api.xiaomimimo.com/v1",
+    model: "mimo-v2.5-pro",
+    chatPath: "/chat/completions",
+    apiKeyHeader: "Authorization",
+    apiKeyPrefix: "Bearer"
+  },
+  custom: {
+    baseUrl: "https://api.example.com/v1",
+    model: "model-id",
+    chatPath: "/chat/completions",
+    apiKeyHeader: "Authorization",
+    apiKeyPrefix: "Bearer"
+  }
+};
 
 function isSecretName(name: string): boolean {
-  return /(API_?KEY|TOKEN|SECRET|PASSWORD)/i.test(name);
+  return /(TOKEN|SECRET|PASSWORD)$/i.test(name) || /(^|_)API_?KEY$/i.test(name);
 }
 
 function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
+  const preset = PROVIDER_PRESETS[answer.preset ?? "deepseek"];
   const env: Record<string, string> = {
-    CHEAP_LLM_BASE_URL: answer.baseUrl ?? "https://api.deepseek.com",
-    CHEAP_LLM_MODEL: answer.model ?? "deepseek-chat",
-    CHEAP_LLM_CHAT_PATH: answer.chatPath ?? "/chat/completions",
+    CHEAP_LLM_BASE_URL: answer.baseUrl ?? preset.baseUrl,
+    CHEAP_LLM_MODEL: answer.model ?? preset.model,
+    CHEAP_LLM_CHAT_PATH: answer.chatPath ?? preset.chatPath,
+    CHEAP_LLM_API_KEY_HEADER: answer.apiKeyHeader ?? preset.apiKeyHeader,
+    CHEAP_LLM_API_KEY_PREFIX: answer.apiKeyPrefix ?? preset.apiKeyPrefix,
     SIMPLE_LLM_DEFAULT_PROVIDER: "cheap",
     SIMPLE_LLM_CHINESE_DEFAULT: "true",
     SIMPLE_LLM_STABILITY_DEFAULT: "true",
@@ -122,18 +152,26 @@ async function ask(prompt: string, defaultValue = ""): Promise<string> {
 
 export async function collectSetupOptions(): Promise<SetupOptions> {
   const clientChoice = await choose("Which client should be configured?", ["Claude Code", "Codex", "Both"], 2);
-  const baseUrl = await ask("OpenAI-compatible base URL", "https://api.deepseek.com");
-  const model = await ask("Model id", "deepseek-chat");
-  const chatPath = await ask("Chat completions path", "/chat/completions");
+  const providerChoice = await choose("Provider preset?", ["DeepSeek", "Xiaomi MiMo", "Custom OpenAI-compatible"], 0);
+  const preset: ProviderPreset = providerChoice === "Xiaomi MiMo" ? "mimo" : providerChoice === "Custom OpenAI-compatible" ? "custom" : "deepseek";
+  const defaults = PROVIDER_PRESETS[preset];
+  const baseUrl = await ask("OpenAI-compatible base URL", defaults.baseUrl);
+  const model = await ask("Model id", defaults.model);
+  const chatPath = await ask("Chat completions path", defaults.chatPath);
+  const apiKeyHeader = await ask("API key header", defaults.apiKeyHeader);
+  const apiKeyPrefix = await ask("API key prefix (use none for headers like api-key)", defaults.apiKeyPrefix);
   const apiKey = await ask("API key (leave blank if you will fill it manually in the client config)");
   const execute = (await choose("Execute these install commands now?", ["Yes", "No"], 0)) === "Yes";
 
   return {
     clients: clientChoice === "Both" ? ["claude", "codex"] : clientChoice === "Claude Code" ? ["claude"] : ["codex"],
+    preset,
     apiKey: apiKey || undefined,
     baseUrl,
     model,
     chatPath,
+    apiKeyHeader,
+    apiKeyPrefix,
     execute
   };
 }

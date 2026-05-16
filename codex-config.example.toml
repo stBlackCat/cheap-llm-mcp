@@ -4,8 +4,10 @@ args = ["-y", "cheap-llm-mcp@latest"]
 
 [mcp_servers.cheap-llm.env]
 CHEAP_LLM_BASE_URL = "https://api.deepseek.com"
-CHEAP_LLM_MODEL = "deepseek-chat"
+CHEAP_LLM_MODEL = "deepseek-v4-flash"
 CHEAP_LLM_CHAT_PATH = "/chat/completions"
+CHEAP_LLM_API_KEY_HEADER = "Authorization"
+CHEAP_LLM_API_KEY_PREFIX = "Bearer"
 SIMPLE_LLM_CHINESE_DEFAULT = "true"
 SIMPLE_LLM_STABILITY_DEFAULT = "true"
 SIMPLE_LLM_MAX_PROMPT_CHARS = "12000"

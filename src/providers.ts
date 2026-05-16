@@ -9,6 +9,8 @@ export const providerJsonSchema = z.array(
     chatPath: z.string().optional(),
     apiKey: z.string().optional(),
     apiKeyEnv: z.string().optional(),
+    apiKeyHeader: z.string().optional(),
+    apiKeyPrefix: z.string().optional(),
     model: z.string().min(1),
     headers: z.record(z.string()).optional(),
     defaultBody: z.record(z.unknown()).optional(),
@@ -29,6 +31,22 @@ export function endpointFor(provider: ProviderConfig): string {
   return `${normalizeBaseUrl(provider.baseUrl)}${normalizePath(provider.chatPath)}`;
 }
 
+export function authHeadersFor(provider: ProviderConfig, apiKey: string): Record<string, string> {
+  const header = provider.apiKeyHeader ?? "Authorization";
+  const rawPrefix = provider.apiKeyPrefix;
+  const prefix =
+    rawPrefix === undefined
+      ? "Bearer "
+      : ["", "none", "empty", "false", "off"].includes(rawPrefix.toLowerCase())
+        ? ""
+        : rawPrefix.endsWith(" ")
+          ? rawPrefix
+          : `${rawPrefix} `;
+  return {
+    [header]: `${prefix}${apiKey}`
+  };
+}
+
 export function builtInProviders(source: NodeJS.ProcessEnv = process.env): ProviderConfig[] {
   const providers: ProviderConfig[] = [
     {
@@ -36,7 +54,9 @@ export function builtInProviders(source: NodeJS.ProcessEnv = process.env): Provi
       baseUrl: env("CHEAP_LLM_BASE_URL", source) ?? "https://api.deepseek.com",
       chatPath: env("CHEAP_LLM_CHAT_PATH", source),
       apiKeyEnv: "CHEAP_LLM_API_KEY",
-      model: env("CHEAP_LLM_MODEL", source) ?? "deepseek-chat",
+      apiKeyHeader: env("CHEAP_LLM_API_KEY_HEADER", source),
+      apiKeyPrefix: env("CHEAP_LLM_API_KEY_PREFIX", source),
+      model: env("CHEAP_LLM_MODEL", source) ?? "deepseek-v4-flash",
       timeoutMs: envNumber("CHEAP_LLM_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
     },
     {
@@ -44,12 +64,22 @@ export function builtInProviders(source: NodeJS.ProcessEnv = process.env): Provi
       baseUrl: env("DEEPSEEK_BASE_URL", source) ?? "https://api.deepseek.com",
       chatPath: env("DEEPSEEK_CHAT_PATH", source),
       apiKeyEnv: "DEEPSEEK_API_KEY",
-      model: env("DEEPSEEK_MODEL", source) ?? "deepseek-chat",
+      model: env("DEEPSEEK_MODEL", source) ?? "deepseek-v4-flash",
       timeoutMs: envNumber("DEEPSEEK_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source),
       defaultBody:
         env("DEEPSEEK_THINKING", source) === "enabled"
           ? { thinking: { type: "enabled", reasoning_effort: env("DEEPSEEK_REASONING_EFFORT", source) ?? "high" } }
           : { thinking: { type: "disabled" } }
+    },
+    {
+      name: "mimo",
+      baseUrl: env("MIMO_BASE_URL", source) ?? "https://api.xiaomimimo.com/v1",
+      chatPath: env("MIMO_CHAT_PATH", source),
+      apiKeyEnv: "MIMO_API_KEY",
+      apiKeyHeader: env("MIMO_API_KEY_HEADER", source),
+      apiKeyPrefix: env("MIMO_API_KEY_PREFIX", source),
+      model: env("MIMO_MODEL", source) ?? "mimo-v2.5-pro",
+      timeoutMs: envNumber("MIMO_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
     },
     {
       name: "qwen",
@@ -61,19 +91,6 @@ export function builtInProviders(source: NodeJS.ProcessEnv = process.env): Provi
       timeoutMs: envNumber("QWEN_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
     }
   ];
-
-  const mimoBaseUrl = env("MIMO_BASE_URL", source);
-  const mimoModel = env("MIMO_MODEL", source);
-  if (mimoBaseUrl && mimoModel) {
-    providers.push({
-      name: "mimo",
-      baseUrl: mimoBaseUrl,
-      chatPath: env("MIMO_CHAT_PATH", source),
-      apiKeyEnv: "MIMO_API_KEY",
-      model: mimoModel,
-      timeoutMs: envNumber("MIMO_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
-    });
-  }
 
   return providers;
 }
@@ -142,6 +159,7 @@ export function providerSetupStatus(source: NodeJS.ProcessEnv = process.env): Ar
       model: provider.model,
       endpoint: endpointFor(provider),
       apiKeyEnv: provider.apiKeyEnv,
+      apiKeyHeader: provider.apiKeyHeader ?? "Authorization",
       hasApiKey: Boolean(apiKey),
       https: url.protocol === "https:",
       timeoutMs: provider.timeoutMs ?? envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source)

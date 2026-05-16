@@ -1,6 +1,6 @@
 {
   "name": "cheap-llm-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Save premium-model tokens by routing simple tasks to cheap OpenAI-compatible LLMs.",
   "type": "module",
   "bin": {

@@ -4,7 +4,7 @@
 
 这个 MCP 可以解决你的大部分小任务成本问题：用便宜的 AI 做便宜的事情，让贵的主模型继续负责统筹、审查和最终决策。
 
-`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给任意 OpenAI-compatible API。
+`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给已经做成预设的 DeepSeek / Xiaomi MiMo，或者交给你自己填写的 OpenAI-compatible API。
 
 ## 快速开始
 
@@ -18,12 +18,14 @@ npx -y cheap-llm-mcp@latest setup
 
 ```bash
 CHEAP_LLM_BASE_URL=https://api.deepseek.com
-CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_MODEL=deepseek-v4-flash
 CHEAP_LLM_API_KEY=sk-...
 CHEAP_LLM_CHAT_PATH=/chat/completions
+CHEAP_LLM_API_KEY_HEADER=Authorization
+CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-就这么简单。DeepSeek、Qwen、MiMo、硅基流动、OpenRouter、本地 OpenAI-compatible 网关，只要提供 chat completions 兼容接口，都按这套配置走。
+就这么简单。DeepSeek 和 Xiaomi MiMo 是首发明确支持的预设；其他平台只要提供兼容 chat completions 的接口，并且鉴权头能按下面的格式配置，就可以按自定义 OpenAI-compatible 接口尝试。
 
 检查配置：
 
@@ -45,8 +47,10 @@ npx -y cheap-llm-mcp@latest config
 claude mcp add --transport stdio --scope user \
   --env CHEAP_LLM_API_KEY=sk-... \
   --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
-  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_MODEL=deepseek-v4-flash \
   --env CHEAP_LLM_CHAT_PATH=/chat/completions \
+  --env CHEAP_LLM_API_KEY_HEADER=Authorization \
+  --env CHEAP_LLM_API_KEY_PREFIX=Bearer \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   cheap-llm -- npx -y cheap-llm-mcp@latest
@@ -66,8 +70,10 @@ claude mcp add --transport stdio --scope user \
 codex mcp add cheap-llm \
   --env CHEAP_LLM_API_KEY=sk-... \
   --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
-  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_MODEL=deepseek-v4-flash \
   --env CHEAP_LLM_CHAT_PATH=/chat/completions \
+  --env CHEAP_LLM_API_KEY_HEADER=Authorization \
+  --env CHEAP_LLM_API_KEY_PREFIX=Bearer \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   -- npx -y cheap-llm-mcp@latest
@@ -77,30 +83,41 @@ codex mcp add cheap-llm \
 
 ## 配置格式
 
-推荐路径只有这四项：
+推荐路径就是这几项：
 
 ```bash
 CHEAP_LLM_BASE_URL=https://your-provider.example/v1
 CHEAP_LLM_MODEL=your-cheap-model
 CHEAP_LLM_API_KEY=your-api-key
 CHEAP_LLM_CHAT_PATH=/chat/completions
+CHEAP_LLM_API_KEY_HEADER=Authorization
+CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-常见例子：
+已明确支持的预设：
 
 ```bash
 # DeepSeek
 CHEAP_LLM_BASE_URL=https://api.deepseek.com
-CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_MODEL=deepseek-v4-flash
 
-# Qwen compatible mode
-CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-CHEAP_LLM_MODEL=qwen-plus
+# Xiaomi MiMo
+CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1
+CHEAP_LLM_MODEL=mimo-v2.5-pro
 
 # 其他 OpenAI-compatible 网关
 CHEAP_LLM_BASE_URL=https://example.com/v1
 CHEAP_LLM_MODEL=model-id
 ```
+
+DeepSeek 使用 `Authorization: Bearer ...`，接口是 `https://api.deepseek.com/chat/completions`。Xiaomi MiMo 的 OpenAI-compatible 接口是 `https://api.xiaomimimo.com/v1/chat/completions`；小米文档同时支持 `Authorization: Bearer ...` 和 `api-key` 头。如果你要切到 `api-key` 头，配置：
+
+```bash
+CHEAP_LLM_API_KEY_HEADER=api-key
+CHEAP_LLM_API_KEY_PREFIX=none
+```
+
+参考文档：[DeepSeek API](https://api-docs.deepseek.com/zh-cn/) 和 [Xiaomi MiMo 首次调用 API](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call)。
 
 高级用户仍然可以用 `SIMPLE_LLM_PROVIDERS` 配多个具名 provider，但默认体验就是一个便宜的 OpenAI-compatible endpoint。
 
