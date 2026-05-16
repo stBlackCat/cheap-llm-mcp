@@ -77,10 +77,11 @@ test("rejects sensitive data classification", () => {
 });
 
 test("rejects secret-like prompts", () => {
+  const fakeKey = `sk-${"1".repeat(30)}`;
   assert.throws(
     () =>
       assertSafeToSend({
-        prompt: "token sk-123456789012345678901234567890",
+        prompt: `token ${fakeKey}`,
         approvedForExternalApi: true,
         dataClassification: "public"
       }),
@@ -104,12 +105,14 @@ test("rejects overlong prompt", () => {
 });
 
 test("redacts secrets in provider errors", () => {
+  const fakeKey = `sk-${"x".repeat(24)}`;
+  const fakeBearer = `Bearer ${"a".repeat(24)}`;
   const redacted = redactError(
-    "bad key sk-real-secret-value and Bearer abcdefghijklmnopqrst",
+    `bad key ${fakeKey} and ${fakeBearer}`,
     { name: "x", baseUrl: "https://example.com", model: "m", apiKeyEnv: "X_KEY" },
-    "sk-real-secret-value",
-    { X_KEY: "sk-real-secret-value" }
+    fakeKey,
+    { X_KEY: fakeKey }
   );
-  assert.equal(redacted.includes("sk-real-secret-value"), false);
-  assert.equal(redacted.includes("Bearer abcdefghijklmnopqrst"), false);
+  assert.equal(redacted.includes(fakeKey), false);
+  assert.equal(redacted.includes(fakeBearer), false);
 });
