@@ -1,0 +1,63 @@
+{
+  "name": "cheap-llm-mcp",
+  "version": "0.1.0",
+  "description": "Save premium-model tokens by routing simple tasks to cheap OpenAI-compatible LLMs.",
+  "type": "module",
+  "bin": {
+    "cheap-llm-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "ci": "npm run typecheck && npm run build && npm test",
+    "prepublishOnly": "npm run ci",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "token-saver",
+    "llm-router",
+    "deepseek",
+    "mimo",
+    "qwen",
+    "openai-compatible"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourname/cheap-llm-mcp.git"
+  },
+  "homepage": "https://github.com/yourname/cheap-llm-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/yourname/cheap-llm-mcp/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    ".env.example",
+    "codex-config.example.toml"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
