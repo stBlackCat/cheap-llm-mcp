@@ -18,6 +18,11 @@ export type SetupOptions = ProviderAnswers & {
 
 const PACKAGE_SPEC = "cheap-llm-mcp@latest";
 const SERVER_NAME = "cheap-llm";
+const SECRET_PLACEHOLDER = "<YOUR_API_KEY>";
+
+function isSecretName(name: string): boolean {
+  return /(API_?KEY|TOKEN|SECRET|PASSWORD)/i.test(name);
+}
 
 function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
   const env: Record<string, string> = {
@@ -52,13 +57,21 @@ export function shellQuote(value: string): string {
   return /\s|["']/.test(value) ? JSON.stringify(value) : value;
 }
 
-export function commandToString(command: string[]): string {
-  return command.map(shellQuote).join(" ");
+function redactCommandPart(value: string): string {
+  const match = /^([^=]+)=(.*)$/.exec(value);
+  if (match && isSecretName(match[1])) {
+    return `${match[1]}=${SECRET_PLACEHOLDER}`;
+  }
+  return value;
 }
 
-export function codexTomlSnippet(answer: ProviderAnswers): string {
+export function commandToString(command: string[], options: { redactSecrets?: boolean } = {}): string {
+  return command.map((part) => shellQuote(options.redactSecrets ? redactCommandPart(part) : part)).join(" ");
+}
+
+export function codexTomlSnippet(answer: ProviderAnswers, options: { redactSecrets?: boolean } = {}): string {
   const envLines = Object.entries(envPairsForProvider(answer))
-    .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
+    .map(([key, value]) => `${key} = ${JSON.stringify(options.redactSecrets && isSecretName(key) ? SECRET_PLACEHOLDER : value)}`)
     .join("\n");
   return `[mcp_servers.${SERVER_NAME}]
 command = "npx"
@@ -70,12 +83,13 @@ ${envLines}
 }
 
 export function claudeJsonSnippet(answer: ProviderAnswers): string {
+  const env = envPairsForProvider(answer);
   return JSON.stringify(
     {
       type: "stdio",
       command: "npx",
       args: ["-y", PACKAGE_SPEC],
-      env: envPairsForProvider(answer)
+      env
     },
     null,
     2
@@ -132,24 +146,30 @@ export async function runSetup(options?: SetupOptions): Promise<number> {
   const selected = options ?? (await collectSetupOptions());
   const commands = commandsForSetup(selected);
   output.write("\nCommands:\n");
-  commands.forEach((command) => output.write(`  ${commandToString(command)}\n`));
+  commands.forEach((command) => output.write(`  ${commandToString(command, { redactSecrets: true })}\n`));
 
   if (!selected.execute) {
     output.write("\nSkipped execution. Copy a command above, or run setup again and choose execution.\n");
     output.write("\nManual Codex fallback:\n");
-    output.write(codexTomlSnippet(selected));
+    output.write(codexTomlSnippet(selected, { redactSecrets: true }));
+    if (selected.apiKey) {
+      output.write(`\nReplace ${SECRET_PLACEHOLDER} with your actual API key in your local client config.\n`);
+    }
     return 0;
   }
 
   for (const command of commands) {
-    output.write(`\nRunning: ${commandToString(command)}\n`);
+    output.write(`\nRunning: ${commandToString(command, { redactSecrets: true })}\n`);
     const result =
       process.platform === "win32"
         ? spawnSync("cmd.exe", ["/d", "/s", "/c", commandToString(command)], { stdio: "inherit" })
         : spawnSync(command[0], command.slice(1), { stdio: "inherit" });
     if (result.status !== 0) {
       output.write("\nCommand failed. Manual Codex fallback:\n");
-      output.write(codexTomlSnippet(selected));
+      output.write(codexTomlSnippet(selected, { redactSecrets: true }));
+      if (selected.apiKey) {
+        output.write(`\nReplace ${SECRET_PLACEHOLDER} with your actual API key in your local client config.\n`);
+      }
       return result.status ?? 1;
     }
   }

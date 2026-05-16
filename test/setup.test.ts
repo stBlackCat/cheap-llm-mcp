@@ -16,6 +16,13 @@ test("builds Codex npx install command", () => {
   assert.equal(commandToString(command).includes("CHEAP_LLM_API_KEY=sk-test"), true);
 });
 
+test("redacts API keys in displayed commands", () => {
+  const command = buildCodexCommand({ apiKey: "sk-test", baseUrl: "https://api.example.com/v1", model: "cheap-model" });
+  const displayed = commandToString(command, { redactSecrets: true });
+  assert.equal(displayed.includes("sk-test"), false);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY=<YOUR_API_KEY>"), true);
+});
+
 test("setup dry run can target both clients", () => {
   const commands = commandsForSetup({
     clients: ["claude", "codex"],
