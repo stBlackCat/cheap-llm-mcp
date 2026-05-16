@@ -27,11 +27,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourname/cheap-llm-mcp.git"
+    "url": "git+https://github.com/stBlackCat/cheap-llm-mcp.git"
   },
-  "homepage": "https://github.com/yourname/cheap-llm-mcp#readme",
+  "homepage": "https://github.com/stBlackCat/cheap-llm-mcp#readme",
   "bugs": {
-    "url": "https://github.com/yourname/cheap-llm-mcp/issues"
+    "url": "https://github.com/stBlackCat/cheap-llm-mcp/issues"
   },
   "files": [
     "dist",

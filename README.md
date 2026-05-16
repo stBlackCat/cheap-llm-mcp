@@ -1,7 +1,7 @@
 # cheap-llm-mcp
 
 [![npm version](https://img.shields.io/npm/v/cheap-llm-mcp.svg)](https://www.npmjs.com/package/cheap-llm-mcp)
-[![CI](https://github.com/yourname/cheap-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/yourname/cheap-llm-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/stBlackCat/cheap-llm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/stBlackCat/cheap-llm-mcp/actions/workflows/ci.yml)
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
