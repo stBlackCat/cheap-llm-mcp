@@ -8,7 +8,7 @@ import { allProviders, providerSetupStatus } from "./providers.js";
 import { maxPromptChars } from "./safety.js";
 
 export const SERVER_NAME = "cheap-llm-mcp";
-export const SERVER_VERSION = "0.1.2";
+export const SERVER_VERSION = "0.1.3";
 
 export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer {
   const server = new McpServer({

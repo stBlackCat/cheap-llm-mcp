@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Made the GitHub homepage README Chinese-first with a separate English docs link.
+- Added an optional tiny public API connectivity test to the setup wizard.
+- Added Qwen / Alibaba Cloud Bailian to the setup wizard and documented it as a first-class domestic model preset.
+
 ## 0.1.2
 
 - Added explicit DeepSeek and Xiaomi MiMo setup presets.

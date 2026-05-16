@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildClaudeCommand, buildCodexCommand, commandToString, commandsForSetup } from "../src/setup.js";
+import { buildClaudeCommand, buildCodexCommand, commandToString, commandsForSetup, envPairsForProvider } from "../src/setup.js";
 
 test("builds Claude Code npx install command", () => {
   const command = buildClaudeCommand({ apiKey: "sk-test", baseUrl: "https://api.example.com/v1", model: "cheap-model" });
@@ -31,6 +31,30 @@ test("builds Xiaomi MiMo preset config", () => {
   assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=Authorization"), true);
   assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=Bearer"), true);
   assert.equal(displayed.includes("mimo-test-key"), false);
+});
+
+test("builds Qwen preset config", () => {
+  const command = buildCodexCommand({ preset: "qwen", apiKey: "qwen-test-key" });
+  const displayed = commandToString(command, { redactSecrets: true });
+  assert.equal(displayed.includes("CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_MODEL=qwen-plus"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=Authorization"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=Bearer"), true);
+  assert.equal(displayed.includes("qwen-test-key"), false);
+});
+
+test("builds runtime env for api-key header connectivity checks", () => {
+  const env = envPairsForProvider({
+    preset: "mimo",
+    apiKey: "mimo-test-key",
+    apiKeyHeader: "api-key",
+    apiKeyPrefix: "none"
+  });
+  assert.equal(env.CHEAP_LLM_BASE_URL, "https://api.xiaomimimo.com/v1");
+  assert.equal(env.CHEAP_LLM_MODEL, "mimo-v2.5-pro");
+  assert.equal(env.CHEAP_LLM_API_KEY_HEADER, "api-key");
+  assert.equal(env.CHEAP_LLM_API_KEY_PREFIX, "none");
+  assert.equal(env.CHEAP_LLM_API_KEY, "mimo-test-key");
 });
 
 test("setup dry run can target both clients", () => {

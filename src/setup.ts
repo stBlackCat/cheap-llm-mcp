@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { callChatCompletion } from "./chat.js";
 
 type Client = "claude" | "codex";
-type ProviderPreset = "deepseek" | "mimo" | "custom";
+type ProviderPreset = "deepseek" | "mimo" | "qwen" | "custom";
 
 export type ProviderAnswers = {
   preset?: ProviderPreset;
@@ -18,6 +19,7 @@ export type ProviderAnswers = {
 export type SetupOptions = ProviderAnswers & {
   clients: Client[];
   execute?: boolean;
+  testConnection?: boolean;
 };
 
 const PACKAGE_SPEC = "cheap-llm-mcp@latest";
@@ -38,6 +40,13 @@ const PROVIDER_PRESETS: Record<ProviderPreset, Required<Pick<ProviderAnswers, "b
     apiKeyHeader: "Authorization",
     apiKeyPrefix: "Bearer"
   },
+  qwen: {
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "qwen-plus",
+    chatPath: "/chat/completions",
+    apiKeyHeader: "Authorization",
+    apiKeyPrefix: "Bearer"
+  },
   custom: {
     baseUrl: "https://api.example.com/v1",
     model: "model-id",
@@ -51,7 +60,7 @@ function isSecretName(name: string): boolean {
   return /(TOKEN|SECRET|PASSWORD)$/i.test(name) || /(^|_)API_?KEY$/i.test(name);
 }
 
-function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
+export function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
   const preset = PROVIDER_PRESETS[answer.preset ?? "deepseek"];
   const env: Record<string, string> = {
     CHEAP_LLM_BASE_URL: answer.baseUrl ?? preset.baseUrl,
@@ -152,8 +161,15 @@ async function ask(prompt: string, defaultValue = ""): Promise<string> {
 
 export async function collectSetupOptions(): Promise<SetupOptions> {
   const clientChoice = await choose("Which client should be configured?", ["Claude Code", "Codex", "Both"], 2);
-  const providerChoice = await choose("Provider preset?", ["DeepSeek", "Xiaomi MiMo", "Custom OpenAI-compatible"], 0);
-  const preset: ProviderPreset = providerChoice === "Xiaomi MiMo" ? "mimo" : providerChoice === "Custom OpenAI-compatible" ? "custom" : "deepseek";
+  const providerChoice = await choose("Provider preset?", ["DeepSeek", "Xiaomi MiMo", "Qwen / Alibaba Cloud Bailian", "Custom OpenAI-compatible"], 0);
+  const preset: ProviderPreset =
+    providerChoice === "Xiaomi MiMo"
+      ? "mimo"
+      : providerChoice === "Qwen / Alibaba Cloud Bailian"
+        ? "qwen"
+        : providerChoice === "Custom OpenAI-compatible"
+          ? "custom"
+          : "deepseek";
   const defaults = PROVIDER_PRESETS[preset];
   const baseUrl = await ask("OpenAI-compatible base URL", defaults.baseUrl);
   const model = await ask("Model id", defaults.model);
@@ -161,6 +177,7 @@ export async function collectSetupOptions(): Promise<SetupOptions> {
   const apiKeyHeader = await ask("API key header", defaults.apiKeyHeader);
   const apiKeyPrefix = await ask("API key prefix (use none for headers like api-key)", defaults.apiKeyPrefix);
   const apiKey = await ask("API key (leave blank if you will fill it manually in the client config)");
+  const testConnection = Boolean(apiKey) && (await choose("Send a tiny API connectivity test now?", ["Yes", "No"], 0)) === "Yes";
   const execute = (await choose("Execute these install commands now?", ["Yes", "No"], 0)) === "Yes";
 
   return {
@@ -172,6 +189,7 @@ export async function collectSetupOptions(): Promise<SetupOptions> {
     chatPath,
     apiKeyHeader,
     apiKeyPrefix,
+    testConnection,
     execute
   };
 }
@@ -180,11 +198,42 @@ export function commandsForSetup(options: SetupOptions): string[][] {
   return options.clients.map((client) => (client === "claude" ? buildClaudeCommand(options) : buildCodexCommand(options)));
 }
 
+export async function testProviderConnection(answer: ProviderAnswers): Promise<string> {
+  return callChatCompletion(
+    {
+      prompt: 'Reply exactly: cheap-llm-mcp-ok',
+      system: "This is a CLI connectivity check. Reply with the exact requested text only.",
+      temperature: 0,
+      maxTokens: 16,
+      includeUsage: true,
+      approvedForExternalApi: true,
+      dataClassification: "public"
+    },
+    envPairsForProvider(answer)
+  );
+}
+
 export async function runSetup(options?: SetupOptions): Promise<number> {
   const selected = options ?? (await collectSetupOptions());
   const commands = commandsForSetup(selected);
   output.write("\nCommands:\n");
   commands.forEach((command) => output.write(`  ${commandToString(command, { redactSecrets: true })}\n`));
+
+  if (selected.testConnection) {
+    if (!selected.apiKey) {
+      output.write("\nSkipped API connectivity test because no API key was provided.\n");
+    } else {
+      output.write("\nTesting API connectivity with a tiny public ping...\n");
+      try {
+        const result = await testProviderConnection(selected);
+        output.write(`API connectivity OK:\n${result.slice(0, 800)}\n`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        output.write(`API connectivity test failed:\n${message}\n`);
+        output.write("The MCP config was still generated below. Fix the provider settings or API key, then run setup again.\n");
+      }
+    }
+  }
 
   if (!selected.execute) {
     output.write("\nSkipped execution. Copy a command above, or run setup again and choose execution.\n");

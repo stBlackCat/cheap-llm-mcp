@@ -5,23 +5,25 @@
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Still worried about GPT Plus limits? Still watching your Claude subscription tokens burn on tiny chores?
+[English docs](README.en.md)
 
-`cheap-llm-mcp` solves a big chunk of that pain: use cheap AI for cheap work, while your premium model stays in charge.
+还在为 GPT Plus 的额度发愁？还在心疼自己的 Claude 会员 token 太贵？
 
-[中文文档](README.zh-CN.md)
+这个 MCP 可以解决你的大部分小任务成本问题：用便宜的 AI 做便宜的事情，让贵的主模型继续负责统筹、审查和最终决策。
 
-This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. It routes simple, low-risk, self-contained tasks to tested DeepSeek and Xiaomi MiMo presets, or to a custom OpenAI-compatible chat completions API. Your main AI still plans, reviews, edits, and decides. The cheap model just handles small drafts.
+`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给国产低成本模型分流处理。内置预设包括 DeepSeek、Xiaomi MiMo 和 Qwen / 阿里云百炼，也可以接入你自己填写的 OpenAI-compatible API。
 
-## Quickstart
+## 快速开始
 
-Install the MCP server first:
+先一键安装 MCP：
 
 ```bash
 npx -y cheap-llm-mcp@latest setup
 ```
 
-Then fill in one OpenAI-compatible endpoint:
+向导会让你选择客户端、provider 预设、模型和 API key。填完 API key 后，它可以立刻发一个极小的公开 ping 测试接口连通性，不发送你的项目内容。
+
+手动配置时，核心就是这几项：
 
 ```bash
 CHEAP_LLM_BASE_URL=https://api.deepseek.com
@@ -32,15 +34,15 @@ CHEAP_LLM_API_KEY_HEADER=Authorization
 CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-That is the whole model setup. DeepSeek and Xiaomi MiMo are first-class presets. Other OpenAI-compatible providers may work when they expose a compatible chat completions endpoint and use a supported API-key header.
+DeepSeek、Xiaomi MiMo 和 Qwen 是明确支持的国产模型预设；其他平台只要提供兼容 chat completions 的接口，并且鉴权头能按下面的格式配置，就可以按自定义 OpenAI-compatible 接口尝试。
 
-Check your setup:
+检查配置：
 
 ```bash
 npx -y cheap-llm-mcp@latest doctor
 ```
 
-Print manual config:
+打印手动配置：
 
 ```bash
 npx -y cheap-llm-mcp@latest config
@@ -48,7 +50,7 @@ npx -y cheap-llm-mcp@latest config
 
 ## Claude Code
 
-The setup wizard can run this after confirmation:
+向导会在你确认后执行类似命令：
 
 ```bash
 claude mcp add --transport stdio --scope user \
@@ -63,7 +65,7 @@ claude mcp add --transport stdio --scope user \
   cheap-llm -- npx -y cheap-llm-mcp@latest
 ```
 
-Restart Claude Code and run:
+重启 Claude Code 后运行：
 
 ```text
 /mcp
@@ -71,7 +73,7 @@ Restart Claude Code and run:
 
 ## Codex
 
-The setup wizard can run this after confirmation:
+向导会在你确认后执行类似命令：
 
 ```bash
 codex mcp add cheap-llm \
@@ -86,78 +88,11 @@ codex mcp add cheap-llm \
   -- npx -y cheap-llm-mcp@latest
 ```
 
-Restart Codex and verify:
+如果命令不可用，运行 `npx -y cheap-llm-mcp@latest config`，把输出的 TOML 写入 `~/.codex/config.toml`。
 
-```bash
-codex mcp list
-```
+## 配置格式
 
-If `codex mcp add` is unavailable, run:
-
-```bash
-npx -y cheap-llm-mcp@latest config
-```
-
-Then paste the printed TOML into `~/.codex/config.toml`.
-
-## What should be delegated?
-
-Good cheap-model tasks:
-
-- summarize a short note
-- translate or rewrite text
-- classify a small snippet
-- extract fields into JSON
-- draft a regex
-- explain a short command
-- produce a tiny isolated code snippet
-
-Bad cheap-model tasks:
-
-- decide architecture
-- edit your repo directly
-- review security-sensitive code
-- reason over a full private codebase
-- handle secrets or sensitive data
-- debug complex cross-file behavior
-
-## Stability without wasting tokens
-
-Cheap models are useful, but they are not the boss.
-
-`cheap-llm-mcp` adds a compact default instruction that tells the cheap model to:
-
-- return a concise draft only
-- avoid final decisions
-- avoid pretending it edited files
-- avoid guessing missing facts
-- say `UNCERTAIN` when the task is ambiguous
-
-The MCP tool description also tells the host AI to lightly review the result against the original task before using it. This keeps the premium model in control without asking the cheap model to produce long self-review reports.
-
-Disable this default only if you know what you are doing:
-
-```bash
-SIMPLE_LLM_STABILITY_DEFAULT=false
-```
-
-## 30-second demo
-
-1. Run `npx -y cheap-llm-mcp@latest setup`.
-2. Restart Claude Code or Codex.
-3. Ask: "Use the cheap LLM MCP to summarize this short text."
-4. Your host AI delegates the small task, then checks the draft before using it.
-
-Available tools:
-
-- `ask_simple_model`: call a configured cheap model for a self-contained task.
-- `list_simple_model_providers`: show configured providers without leaking API keys.
-- `check_simple_model_setup`: validate local provider configuration without making a model request.
-- `get_token_savings`: show how many provider-reported tokens were routed to cheap models.
-
-## OpenAI-compatible config
-
-The recommended config is intentionally boring:
+推荐路径就是这几项：
 
 ```bash
 CHEAP_LLM_BASE_URL=https://your-provider.example/v1
@@ -168,7 +103,7 @@ CHEAP_LLM_API_KEY_HEADER=Authorization
 CHEAP_LLM_API_KEY_PREFIX=Bearer
 ```
 
-Tested presets:
+已明确支持的预设：
 
 ```bash
 # DeepSeek
@@ -179,80 +114,83 @@ CHEAP_LLM_MODEL=deepseek-v4-flash
 CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1
 CHEAP_LLM_MODEL=mimo-v2.5-pro
 
-# Any other OpenAI-compatible gateway
+# Qwen / 阿里云百炼
+CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+CHEAP_LLM_MODEL=qwen-plus
+
+# 其他 OpenAI-compatible 网关
 CHEAP_LLM_BASE_URL=https://example.com/v1
 CHEAP_LLM_MODEL=model-id
 ```
 
-DeepSeek uses `Authorization: Bearer ...` with `https://api.deepseek.com/chat/completions`. Xiaomi MiMo's OpenAI-compatible endpoint uses `https://api.xiaomimimo.com/v1/chat/completions`; its docs support `Authorization: Bearer ...`, and also document an `api-key` header. To switch to that form, set:
+DeepSeek 使用 `Authorization: Bearer ...`，接口是 `https://api.deepseek.com/chat/completions`。Xiaomi MiMo 的 OpenAI-compatible 接口是 `https://api.xiaomimimo.com/v1/chat/completions`；小米文档同时支持 `Authorization: Bearer ...` 和 `api-key` 头。如果你要切到 `api-key` 头，配置：
 
 ```bash
 CHEAP_LLM_API_KEY_HEADER=api-key
 CHEAP_LLM_API_KEY_PREFIX=none
 ```
 
-Reference docs: [DeepSeek API](https://api-docs.deepseek.com/zh-cn/) and [Xiaomi MiMo first API call](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call).
+Qwen / 阿里云百炼使用 DashScope OpenAI-compatible endpoint：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`，默认模型是 `qwen-plus`。
 
-Advanced users can still configure multiple named providers with `SIMPLE_LLM_PROVIDERS`, but the default path is one cheap OpenAI-compatible endpoint.
+参考文档：[DeepSeek API](https://api-docs.deepseek.com/zh-cn/)、[Xiaomi MiMo 首次调用 API](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call) 和 [Alibaba Cloud Model Studio Qwen API](https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api)。
 
-## Token savings
+高级用户仍然可以用 `SIMPLE_LLM_PROVIDERS` 配多个具名 provider，但默认体验就是一个便宜的 OpenAI-compatible endpoint。
 
-Run the MCP tool `get_token_savings` to see how many tokens were actually handled by cheap models during the current MCP server session.
+## 什么任务适合外包？
 
-It reports prompt, completion, and total cheap-model tokens, plus a provider/model breakdown and a rough `estimatedPremiumTokensAvoided` token-volume proxy. This is token-based by design; provider prices change often, so `cheap-llm-mcp` does not hardcode pricing tables.
+适合：短文本摘要、翻译润色、简单分类、小段信息抽取成 JSON、正则草稿、简短命令解释、独立小代码片段。
 
-For a persistent audit trail, set:
+不适合：架构决策、直接修改仓库、安全敏感代码审查、完整私有代码库上下文推理、密钥或敏感数据、复杂跨文件调试。
 
-```bash
-SIMPLE_LLM_USAGE_LOG=/path/to/cheap-llm-usage.jsonl
-```
+## 稳定性控制，但不浪费 token
 
-The usage log records provider, model, token counts, and timestamp only. It does not record prompts or model outputs.
+便宜模型可以干活，但不能当负责人。
 
-## Safety defaults
+`cheap-llm-mcp` 默认会给便宜模型加一条很短的稳定性约束：只输出简洁草案，不做最终决策，不假装已经修改文件，不乱猜缺失事实，遇到不确定任务时用 `UNCERTAIN` 说明。
 
-`cheap-llm-mcp` is for low-risk delegation, not blind outsourcing.
+同时，MCP 工具描述会要求 Codex 或 Claude Code 的主 AI 对结果进行轻量审查：只对照原任务核对是否可用，不额外发大段上下文，也不默认让便宜模型再自我审查一遍。这样既能提升稳定性，也不会把省下来的 token 又花回去。
 
-- Calls require `approvedForExternalApi=true`.
-- Calls require `dataClassification`.
-- `dataClassification=sensitive` is rejected.
-- Common API key, token, password, AWS key, and private key patterns are rejected.
-- HTTP providers are rejected unless `SIMPLE_LLM_ALLOW_HTTP=true`.
-- Prompt size is capped by `SIMPLE_LLM_MAX_PROMPT_CHARS` (default: `12000`).
-- Requests time out via `SIMPLE_LLM_TIMEOUT_MS` (default: `60000`).
-- Provider errors are redacted before being returned.
-- Optional usage logs contain provider/model/token counts only, not prompts or outputs.
+## Token 节省统计
 
-## Chinese default
+运行 MCP 工具 `get_token_savings`，可以看到当前 MCP server 会话里实际有多少 token 被低费用模型处理了。
 
-Chinese-first output is enabled by default:
+它会统计低费用模型的 prompt、completion、total token，按 provider/model 分组，并给出粗略的 `estimatedPremiumTokensAvoided`。这里默认只统计 token，不硬编码价格表，因为各家模型价格经常变。
+
+## 默认中文约束
+
+默认开启：
 
 ```bash
 SIMPLE_LLM_CHINESE_DEFAULT=true
 ```
 
-The server asks the cheap model to answer in Simplified Chinese while preserving code, commands, paths, API names, model names, error messages, config keys, and English technical terms. Disable it with:
+MCP 会自动注入中文优先 system prompt：默认使用简体中文回答，但保留代码、命令、文件路径、API 名称、模型名称、错误信息、配置键和英文技术术语原文。
 
-```bash
-SIMPLE_LLM_CHINESE_DEFAULT=false
-```
+## 安全边界
 
-## Why not just use a smaller main model?
+这个 MCP 只适合低风险、可自包含的小任务：
 
-A smaller main model saves tokens, but it also becomes responsible for planning, safety, code changes, and tool orchestration. `cheap-llm-mcp` keeps your strongest model in charge and only delegates small, self-contained work. That preserves judgment while cutting premium-model spend.
+- 必须显式确认 `approvedForExternalApi=true`
+- 必须提供 `dataClassification`
+- `sensitive` 数据会直接拒绝
+- 自动扫描常见 API key、token、password、AWS key、private key
+- 默认只允许 HTTPS provider
+- 默认 prompt 上限是 12000 字符
+- 默认请求超时是 60000ms
+- provider 错误会脱敏后返回
+- setup 连通性测试只发送固定 public ping，不发送你的仓库、需求或业务数据
 
-## Development
+不要把密钥、敏感客户数据、完整私有仓库上下文、安全判断、复杂架构决策、大规模重构交给外部便宜模型。
+
+## 为什么不是直接换小模型？
+
+直接把主模型换小，省了 token，但规划、判断、安全边界、工具编排都会变弱。`cheap-llm-mcp` 的思路是强模型继续当负责人，只把小而明确的任务转交出去。
+
+## 开发
 
 ```bash
 npm install
 npm run ci
-```
-
-Start the MCP server locally:
-
-```bash
-npm run build
-node dist/index.js
 ```
 
 ## License
