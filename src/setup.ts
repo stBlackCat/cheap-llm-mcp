@@ -3,23 +3,16 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
 type Client = "claude" | "codex";
-type ProviderChoice = "deepseek" | "qwen" | "mimo" | "custom";
 
 export type ProviderAnswers = {
-  provider: ProviderChoice;
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   chatPath?: string;
 };
 
-export type SetupOptions = {
+export type SetupOptions = ProviderAnswers & {
   clients: Client[];
-  provider: ProviderChoice;
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-  chatPath?: string;
   execute?: boolean;
 };
 
@@ -28,37 +21,18 @@ const SERVER_NAME = "cheap-llm";
 
 function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
   const env: Record<string, string> = {
+    CHEAP_LLM_BASE_URL: answer.baseUrl ?? "https://api.deepseek.com",
+    CHEAP_LLM_MODEL: answer.model ?? "deepseek-chat",
+    CHEAP_LLM_CHAT_PATH: answer.chatPath ?? "/chat/completions",
+    SIMPLE_LLM_DEFAULT_PROVIDER: "cheap",
     SIMPLE_LLM_CHINESE_DEFAULT: "true",
     SIMPLE_LLM_STABILITY_DEFAULT: "true",
     SIMPLE_LLM_MAX_PROMPT_CHARS: "12000",
-    SIMPLE_LLM_TIMEOUT_MS: "60000",
-    SIMPLE_LLM_DEFAULT_PROVIDER: answer.provider === "custom" ? "custom" : answer.provider
+    SIMPLE_LLM_TIMEOUT_MS: "60000"
   };
 
-  if (answer.provider === "deepseek") {
-    env.DEEPSEEK_BASE_URL = answer.baseUrl ?? "https://api.deepseek.com";
-    env.DEEPSEEK_MODEL = answer.model ?? "deepseek-chat";
-    env.DEEPSEEK_THINKING = "disabled";
-    if (answer.apiKey) env.DEEPSEEK_API_KEY = answer.apiKey;
-  } else if (answer.provider === "qwen") {
-    env.QWEN_BASE_URL = answer.baseUrl ?? "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    env.QWEN_MODEL = answer.model ?? "qwen-plus";
-    if (answer.apiKey) env.QWEN_API_KEY = answer.apiKey;
-  } else if (answer.provider === "mimo") {
-    env.MIMO_BASE_URL = answer.baseUrl ?? "";
-    env.MIMO_MODEL = answer.model ?? "";
-    env.MIMO_CHAT_PATH = answer.chatPath ?? "/chat/completions";
-    if (answer.apiKey) env.MIMO_API_KEY = answer.apiKey;
-  } else {
-    const custom = {
-      name: "custom",
-      baseUrl: answer.baseUrl ?? "https://example.com/v1",
-      chatPath: answer.chatPath ?? "/chat/completions",
-      apiKeyEnv: "CUSTOM_LLM_API_KEY",
-      model: answer.model ?? "your-model-id"
-    };
-    env.SIMPLE_LLM_PROVIDERS = JSON.stringify([custom]);
-    if (answer.apiKey) env.CUSTOM_LLM_API_KEY = answer.apiKey;
+  if (answer.apiKey) {
+    env.CHEAP_LLM_API_KEY = answer.apiKey;
   }
 
   return Object.fromEntries(Object.entries(env).filter(([, value]) => value.length > 0));
@@ -134,27 +108,24 @@ async function ask(prompt: string, defaultValue = ""): Promise<string> {
 
 export async function collectSetupOptions(): Promise<SetupOptions> {
   const clientChoice = await choose("Which client should be configured?", ["Claude Code", "Codex", "Both"], 2);
-  const provider = (await choose("Which provider should cheap-llm-mcp use first?", ["deepseek", "qwen", "mimo", "custom"], 0)) as ProviderChoice;
-  const apiKey = await ask("API key (leave blank if you already set an environment variable)");
-  const baseUrl = provider === "mimo" || provider === "custom" ? await ask("Provider base URL") : await ask("Provider base URL", "");
-  const model = await ask("Model id", provider === "deepseek" ? "deepseek-chat" : provider === "qwen" ? "qwen-plus" : "");
-  const chatPath = provider === "mimo" || provider === "custom" ? await ask("Chat completions path", "/chat/completions") : "";
+  const baseUrl = await ask("OpenAI-compatible base URL", "https://api.deepseek.com");
+  const model = await ask("Model id", "deepseek-chat");
+  const chatPath = await ask("Chat completions path", "/chat/completions");
+  const apiKey = await ask("API key (leave blank if you will fill it manually in the client config)");
   const execute = (await choose("Execute these install commands now?", ["Yes", "No"], 0)) === "Yes";
 
   return {
     clients: clientChoice === "Both" ? ["claude", "codex"] : clientChoice === "Claude Code" ? ["claude"] : ["codex"],
-    provider,
     apiKey: apiKey || undefined,
-    baseUrl: baseUrl || undefined,
-    model: model || undefined,
-    chatPath: chatPath || undefined,
+    baseUrl,
+    model,
+    chatPath,
     execute
   };
 }
 
 export function commandsForSetup(options: SetupOptions): string[][] {
-  const answer: ProviderAnswers = options;
-  return options.clients.map((client) => (client === "claude" ? buildClaudeCommand(answer) : buildCodexCommand(answer)));
+  return options.clients.map((client) => (client === "claude" ? buildClaudeCommand(options) : buildCodexCommand(options)));
 }
 
 export async function runSetup(options?: SetupOptions): Promise<number> {
@@ -165,6 +136,8 @@ export async function runSetup(options?: SetupOptions): Promise<number> {
 
   if (!selected.execute) {
     output.write("\nSkipped execution. Copy a command above, or run setup again and choose execution.\n");
+    output.write("\nManual Codex fallback:\n");
+    output.write(codexTomlSnippet(selected));
     return 0;
   }
 
@@ -185,8 +158,8 @@ export async function runSetup(options?: SetupOptions): Promise<number> {
   return 0;
 }
 
-export function printConfig(provider: ProviderChoice = "deepseek"): void {
-  const answer: ProviderAnswers = { provider };
+export function printConfig(): void {
+  const answer: ProviderAnswers = {};
   output.write("Claude Code:\n");
   output.write(`${commandToString(buildClaudeCommand(answer))}\n\n`);
   output.write("Codex:\n");

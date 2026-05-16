@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { allProviders, endpointFor, resolveProvider } from "../src/providers.js";
 
-test("loads DeepSeek and Qwen built-ins", () => {
+test("loads generic cheap provider plus compatibility built-ins", () => {
   const providers = allProviders({});
   assert.deepEqual(
     providers.map((provider) => provider.name),
-    ["deepseek", "qwen"]
+    ["cheap", "deepseek", "qwen"]
   );
+  assert.equal(resolveProvider(undefined, {}).name, "cheap");
+  assert.equal(resolveProvider("cheap", {}).model, "deepseek-chat");
   assert.equal(resolveProvider("deepseek", {}).model, "deepseek-chat");
   assert.equal(resolveProvider("qwen", {}).model, "qwen-plus");
 });

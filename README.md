@@ -15,11 +15,22 @@ This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. 
 
 ## Quickstart
 
-Install and configure interactively:
+Install the MCP server first:
 
 ```bash
 npx -y cheap-llm-mcp@latest setup
 ```
+
+Then fill in one OpenAI-compatible endpoint:
+
+```bash
+CHEAP_LLM_BASE_URL=https://api.deepseek.com
+CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_API_KEY=sk-...
+CHEAP_LLM_CHAT_PATH=/chat/completions
+```
+
+That is the whole model setup. DeepSeek, Qwen, MiMo, SiliconFlow, OpenRouter, local OpenAI-compatible gateways, and most other providers work the same way as long as they expose a chat completions compatible endpoint.
 
 Check your setup:
 
@@ -39,9 +50,10 @@ The setup wizard can run this after confirmation:
 
 ```bash
 claude mcp add --transport stdio --scope user \
-  --env DEEPSEEK_API_KEY=sk-... \
-  --env DEEPSEEK_BASE_URL=https://api.deepseek.com \
-  --env DEEPSEEK_MODEL=deepseek-chat \
+  --env CHEAP_LLM_API_KEY=sk-... \
+  --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
+  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_CHAT_PATH=/chat/completions \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   cheap-llm -- npx -y cheap-llm-mcp@latest
@@ -59,9 +71,10 @@ The setup wizard can run this after confirmation:
 
 ```bash
 codex mcp add cheap-llm \
-  --env DEEPSEEK_API_KEY=sk-... \
-  --env DEEPSEEK_BASE_URL=https://api.deepseek.com \
-  --env DEEPSEEK_MODEL=deepseek-chat \
+  --env CHEAP_LLM_API_KEY=sk-... \
+  --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
+  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_CHAT_PATH=/chat/completions \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   -- npx -y cheap-llm-mcp@latest
@@ -136,20 +149,34 @@ Available tools:
 - `check_simple_model_setup`: validate local provider configuration without making a model request.
 - `get_token_savings`: show how many provider-reported tokens were routed to cheap models.
 
-## Providers
+## OpenAI-compatible config
 
-Built-ins:
-
-- DeepSeek: `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`
-- Qwen: `QWEN_API_KEY` or `DASHSCOPE_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`
-- MiMo: `MIMO_API_KEY`, `MIMO_BASE_URL`, `MIMO_MODEL`
-
-Custom OpenAI-compatible provider:
+The recommended config is intentionally boring:
 
 ```bash
-SIMPLE_LLM_PROVIDERS='[{"name":"custom","baseUrl":"https://example.com/v1","apiKeyEnv":"CUSTOM_LLM_API_KEY","model":"model-id"}]'
-CUSTOM_LLM_API_KEY=...
+CHEAP_LLM_BASE_URL=https://your-provider.example/v1
+CHEAP_LLM_MODEL=your-cheap-model
+CHEAP_LLM_API_KEY=your-api-key
+CHEAP_LLM_CHAT_PATH=/chat/completions
 ```
+
+Examples:
+
+```bash
+# DeepSeek
+CHEAP_LLM_BASE_URL=https://api.deepseek.com
+CHEAP_LLM_MODEL=deepseek-chat
+
+# Qwen compatible mode
+CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+CHEAP_LLM_MODEL=qwen-plus
+
+# Any other OpenAI-compatible gateway
+CHEAP_LLM_BASE_URL=https://example.com/v1
+CHEAP_LLM_MODEL=model-id
+```
+
+Advanced users can still configure multiple named providers with `SIMPLE_LLM_PROVIDERS`, but the default path is one cheap OpenAI-compatible endpoint.
 
 ## Token savings
 

@@ -4,15 +4,26 @@
 
 这个 MCP 可以解决你的大部分小任务成本问题：用便宜的 AI 做便宜的事情，让贵的主模型继续负责统筹、审查和最终决策。
 
-`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给 DeepSeek、Qwen、MiMo 或任意 OpenAI-compatible API。
+`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给任意 OpenAI-compatible API。
 
 ## 快速开始
 
-交互式安装：
+先一键安装 MCP：
 
 ```bash
 npx -y cheap-llm-mcp@latest setup
 ```
+
+下一步只填一个兼容 OpenAI 的接口：
+
+```bash
+CHEAP_LLM_BASE_URL=https://api.deepseek.com
+CHEAP_LLM_MODEL=deepseek-chat
+CHEAP_LLM_API_KEY=sk-...
+CHEAP_LLM_CHAT_PATH=/chat/completions
+```
+
+就这么简单。DeepSeek、Qwen、MiMo、硅基流动、OpenRouter、本地 OpenAI-compatible 网关，只要提供 chat completions 兼容接口，都按这套配置走。
 
 检查配置：
 
@@ -32,9 +43,10 @@ npx -y cheap-llm-mcp@latest config
 
 ```bash
 claude mcp add --transport stdio --scope user \
-  --env DEEPSEEK_API_KEY=sk-... \
-  --env DEEPSEEK_BASE_URL=https://api.deepseek.com \
-  --env DEEPSEEK_MODEL=deepseek-chat \
+  --env CHEAP_LLM_API_KEY=sk-... \
+  --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
+  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_CHAT_PATH=/chat/completions \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   cheap-llm -- npx -y cheap-llm-mcp@latest
@@ -52,91 +64,65 @@ claude mcp add --transport stdio --scope user \
 
 ```bash
 codex mcp add cheap-llm \
-  --env DEEPSEEK_API_KEY=sk-... \
-  --env DEEPSEEK_BASE_URL=https://api.deepseek.com \
-  --env DEEPSEEK_MODEL=deepseek-chat \
+  --env CHEAP_LLM_API_KEY=sk-... \
+  --env CHEAP_LLM_BASE_URL=https://api.deepseek.com \
+  --env CHEAP_LLM_MODEL=deepseek-chat \
+  --env CHEAP_LLM_CHAT_PATH=/chat/completions \
   --env SIMPLE_LLM_CHINESE_DEFAULT=true \
   --env SIMPLE_LLM_STABILITY_DEFAULT=true \
   -- npx -y cheap-llm-mcp@latest
 ```
 
-重启 Codex 后检查：
+如果命令不可用，运行 `npx -y cheap-llm-mcp@latest config`，把输出的 TOML 写入 `~/.codex/config.toml`。
+
+## 配置格式
+
+推荐路径只有这四项：
 
 ```bash
-codex mcp list
+CHEAP_LLM_BASE_URL=https://your-provider.example/v1
+CHEAP_LLM_MODEL=your-cheap-model
+CHEAP_LLM_API_KEY=your-api-key
+CHEAP_LLM_CHAT_PATH=/chat/completions
 ```
 
-如果命令不可用，运行 `npx -y cheap-llm-mcp@latest config`，把输出的 TOML 写入 `~/.codex/config.toml`。
+常见例子：
+
+```bash
+# DeepSeek
+CHEAP_LLM_BASE_URL=https://api.deepseek.com
+CHEAP_LLM_MODEL=deepseek-chat
+
+# Qwen compatible mode
+CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+CHEAP_LLM_MODEL=qwen-plus
+
+# 其他 OpenAI-compatible 网关
+CHEAP_LLM_BASE_URL=https://example.com/v1
+CHEAP_LLM_MODEL=model-id
+```
+
+高级用户仍然可以用 `SIMPLE_LLM_PROVIDERS` 配多个具名 provider，但默认体验就是一个便宜的 OpenAI-compatible endpoint。
 
 ## 什么任务适合外包？
 
-适合：
+适合：短文本摘要、翻译润色、简单分类、小段信息抽取成 JSON、正则草稿、简短命令解释、独立小代码片段。
 
-- 短文本摘要
-- 翻译和润色
-- 简单分类
-- 小段信息抽取成 JSON
-- 正则草稿
-- 简短命令解释
-- 独立的小代码片段
-
-不适合：
-
-- 架构决策
-- 直接修改仓库
-- 安全敏感代码审查
-- 完整私有代码库上下文推理
-- 密钥或敏感数据
-- 复杂跨文件调试
+不适合：架构决策、直接修改仓库、安全敏感代码审查、完整私有代码库上下文推理、密钥或敏感数据、复杂跨文件调试。
 
 ## 稳定性控制，但不浪费 token
 
 便宜模型可以干活，但不能当负责人。
 
-`cheap-llm-mcp` 默认会给便宜模型加一条很短的稳定性约束：
-
-- 只输出简洁草案
-- 不做最终决策
-- 不假装已经修改文件
-- 不乱猜缺失事实
-- 遇到不确定任务时用 `UNCERTAIN` 说明
+`cheap-llm-mcp` 默认会给便宜模型加一条很短的稳定性约束：只输出简洁草案，不做最终决策，不假装已经修改文件，不乱猜缺失事实，遇到不确定任务时用 `UNCERTAIN` 说明。
 
 同时，MCP 工具描述会要求 Codex 或 Claude Code 的主 AI 对结果进行轻量审查：只对照原任务核对是否可用，不额外发大段上下文，也不默认让便宜模型再自我审查一遍。这样既能提升稳定性，也不会把省下来的 token 又花回去。
-
-关闭稳定性默认约束：
-
-```bash
-SIMPLE_LLM_STABILITY_DEFAULT=false
-```
-
-## 支持的 provider
-
-内置：
-
-- DeepSeek：`DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL`
-- Qwen：`QWEN_API_KEY` 或 `DASHSCOPE_API_KEY`、`QWEN_BASE_URL`、`QWEN_MODEL`
-- MiMo：`MIMO_API_KEY`、`MIMO_BASE_URL`、`MIMO_MODEL`
-
-自定义 OpenAI-compatible provider：
-
-```bash
-SIMPLE_LLM_PROVIDERS='[{"name":"custom","baseUrl":"https://example.com/v1","apiKeyEnv":"CUSTOM_LLM_API_KEY","model":"model-id"}]'
-CUSTOM_LLM_API_KEY=...
-```
 
 ## Token 节省统计
 
 运行 MCP 工具 `get_token_savings`，可以看到当前 MCP server 会话里实际有多少 token 被低费用模型处理了。
 
 它会统计低费用模型的 prompt、completion、total token，按 provider/model 分组，并给出粗略的 `estimatedPremiumTokensAvoided`。这里默认只统计 token，不硬编码价格表，因为各家模型价格经常变。
-
-如果你想长期留痕，可以设置：
-
-```bash
-SIMPLE_LLM_USAGE_LOG=/path/to/cheap-llm-usage.jsonl
-```
-
-日志只记录 provider、model、token 数和时间，不记录 prompt 或模型输出。工具也支持 `reset=true`，用于查看后重置当前进程内的计数器。
 
 ## 默认中文约束
 
@@ -146,11 +132,7 @@ SIMPLE_LLM_USAGE_LOG=/path/to/cheap-llm-usage.jsonl
 SIMPLE_LLM_CHINESE_DEFAULT=true
 ```
 
-MCP 会自动注入中文优先 system prompt：默认使用简体中文回答，但保留代码、命令、文件路径、API 名称、模型名称、错误信息、配置键和英文技术术语原文。关闭方式：
-
-```bash
-SIMPLE_LLM_CHINESE_DEFAULT=false
-```
+MCP 会自动注入中文优先 system prompt：默认使用简体中文回答，但保留代码、命令、文件路径、API 名称、模型名称、错误信息、配置键和英文技术术语原文。
 
 ## 安全边界
 

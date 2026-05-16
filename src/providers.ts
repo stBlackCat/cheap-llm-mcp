@@ -32,6 +32,14 @@ export function endpointFor(provider: ProviderConfig): string {
 export function builtInProviders(source: NodeJS.ProcessEnv = process.env): ProviderConfig[] {
   const providers: ProviderConfig[] = [
     {
+      name: "cheap",
+      baseUrl: env("CHEAP_LLM_BASE_URL", source) ?? "https://api.deepseek.com",
+      chatPath: env("CHEAP_LLM_CHAT_PATH", source),
+      apiKeyEnv: "CHEAP_LLM_API_KEY",
+      model: env("CHEAP_LLM_MODEL", source) ?? "deepseek-chat",
+      timeoutMs: envNumber("CHEAP_LLM_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
+    },
+    {
       name: "deepseek",
       baseUrl: env("DEEPSEEK_BASE_URL", source) ?? "https://api.deepseek.com",
       chatPath: env("DEEPSEEK_CHAT_PATH", source),
@@ -108,7 +116,7 @@ export function allProviders(source: NodeJS.ProcessEnv = process.env): ProviderC
 
 export function resolveProvider(name?: string, source: NodeJS.ProcessEnv = process.env): ProviderConfig {
   const providers = allProviders(source);
-  const selectedName = name ?? env("SIMPLE_LLM_DEFAULT_PROVIDER", source) ?? providers[0]?.name;
+  const selectedName = name ?? env("SIMPLE_LLM_DEFAULT_PROVIDER", source) ?? "cheap";
   const provider = providers.find((candidate) => candidate.name === selectedName);
   if (!provider) {
     throw new Error(`Unknown provider "${selectedName}". Available providers: ${providers.map((p) => p.name).join(", ")}`);

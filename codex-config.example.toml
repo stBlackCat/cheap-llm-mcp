@@ -3,8 +3,9 @@ command = "npx"
 args = ["-y", "cheap-llm-mcp@latest"]
 
 [mcp_servers.cheap-llm.env]
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+CHEAP_LLM_BASE_URL = "https://api.deepseek.com"
+CHEAP_LLM_MODEL = "deepseek-chat"
+CHEAP_LLM_CHAT_PATH = "/chat/completions"
 SIMPLE_LLM_CHINESE_DEFAULT = "true"
 SIMPLE_LLM_STABILITY_DEFAULT = "true"
 SIMPLE_LLM_MAX_PROMPT_CHARS = "12000"
@@ -12,4 +13,4 @@ SIMPLE_LLM_TIMEOUT_MS = "60000"
 # SIMPLE_LLM_USAGE_LOG = "C:\\path\\to\\cheap-llm-usage.jsonl"
 
 # Add an API key here, or set it in your system environment.
-# DEEPSEEK_API_KEY = "sk-..."
+# CHEAP_LLM_API_KEY = "sk-..."
