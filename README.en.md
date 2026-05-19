@@ -148,7 +148,7 @@ CHEAP_LLM_BASE_URL=https://api.deepseek.com
 CHEAP_LLM_MODEL=deepseek-v4-flash
 
 # Xiaomi MiMo
-CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1
+CHEAP_LLM_BASE_URL=https://api.mimo-v2.com/v1
 CHEAP_LLM_MODEL=mimo-v2.5-pro
 
 # Qwen / Alibaba Cloud Bailian
@@ -156,7 +156,7 @@ CHEAP_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 CHEAP_LLM_MODEL=qwen-plus
 ```
 
-Xiaomi MiMo also documents an `api-key` header. To switch to that form:
+Xiaomi MiMo's current curl example uses the `api-key` header:
 
 ```bash
 CHEAP_LLM_API_KEY_HEADER=api-key
@@ -165,7 +165,13 @@ CHEAP_LLM_API_KEY_PREFIX=none
 
 Qwen / Alibaba Cloud Bailian uses the DashScope OpenAI-compatible endpoint: `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`, with `qwen-plus` as the default model.
 
-Reference docs: [DeepSeek API](https://api-docs.deepseek.com/zh-cn/), [Xiaomi MiMo first API call](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call), and [Alibaba Cloud Model Studio Qwen API](https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api).
+The MCP does not set `max_tokens` by default; output is capped only when the tool call explicitly passes `maxTokens`. For provider-specific OpenAI-compatible request knobs, configure:
+
+```bash
+CHEAP_LLM_DEFAULT_BODY={"reasoning_effort":"low"}
+```
+
+Reference docs: [DeepSeek API](https://api-docs.deepseek.com/zh-cn/), [Xiaomi MiMo first API call](https://www.mimo-v2.com/zh/docs/quick-start/first-api-call), and [Alibaba Cloud Model Studio Qwen API](https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api).
 
 ## Token Savings
 

@@ -2,26 +2,45 @@ import { envNumber } from "./env.js";
 import { apiKeyFor, authHeadersFor, endpointFor, resolveProvider } from "./providers.js";
 import { assertSafeToSend, buildMessages, redactError } from "./safety.js";
 import { recordUsage } from "./accounting.js";
-import type { AskSimpleModelInput, ChatCompletionResponse } from "./types.js";
+import type { AskSimpleModelInput, ChatCompletionResponse, ProviderConfig } from "./types.js";
+
+export function providerDefaultBody(provider: ProviderConfig, requestedModel?: string): Record<string, unknown> {
+  const model = requestedModel ?? provider.model;
+  if (/mimo-v2\.5/i.test(model)) {
+    return {
+      reasoning_effort: "low"
+    };
+  }
+  return {};
+}
 
 export function buildRequestBody(input: AskSimpleModelInput, source: NodeJS.ProcessEnv = process.env): Record<string, unknown> {
   const provider = resolveProvider(input.provider, source);
-  return {
+  const body: Record<string, unknown> = {
+    ...providerDefaultBody(provider, input.model),
     ...provider.defaultBody,
     ...input.extraBody,
     model: input.model ?? provider.model,
     messages: buildMessages(input, source),
     temperature: input.temperature ?? 0.2,
-    max_tokens: input.maxTokens ?? 800,
     response_format: input.responseFormat ? { type: input.responseFormat } : undefined
   };
+  if (input.maxTokens !== undefined) {
+    body.max_tokens = input.maxTokens;
+  }
+  return body;
 }
 
 export function stringifyResult(response: ChatCompletionResponse, includeUsage: boolean): string {
   const choice = response.choices?.[0];
   const content = choice?.message?.content ?? "";
   const reasoning = choice?.message?.reasoning_content;
-  const parts = [content.trim()];
+  const parts = [
+    content.trim() ||
+      (reasoning
+        ? "UNCERTAIN: provider returned reasoning_content but no final message content; increase maxTokens or lower reasoning_effort."
+        : "")
+  ];
 
   if (includeUsage && response.usage) {
     parts.push(
@@ -42,6 +61,24 @@ export function stringifyResult(response: ChatCompletionResponse, includeUsage: 
   }
 
   return parts.filter(Boolean).join("\n");
+}
+
+export function formatFetchError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const cause = error.cause;
+  const causeMessage =
+    cause instanceof Error
+      ? cause.message
+      : cause && typeof cause === "object" && "message" in cause
+        ? String((cause as { message: unknown }).message)
+        : undefined;
+  const causeCode =
+    cause && typeof cause === "object" && "code" in cause ? String((cause as { code: unknown }).code) : undefined;
+  const details = [error.message, causeCode ? `cause code: ${causeCode}` : undefined, causeMessage ? `cause: ${causeMessage}` : undefined].filter(Boolean);
+  return details.join("; ");
 }
 
 export async function callChatCompletion(input: AskSimpleModelInput, source: NodeJS.ProcessEnv = process.env): Promise<string> {
@@ -69,7 +106,7 @@ export async function callChatCompletion(input: AskSimpleModelInput, source: Nod
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Provider "${provider.name}" request timed out after ${timeoutMs}ms.`);
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = formatFetchError(error);
     throw new Error(`Provider "${provider.name}" request failed: ${redactError(message, provider, apiKey, source)}`);
   } finally {
     clearTimeout(timeout);

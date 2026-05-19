@@ -53,7 +53,7 @@ export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer
           .optional()
           .describe("Classification of the prompt content. sensitive content is always rejected."),
         temperature: z.number().min(0).max(2).optional().describe("Sampling temperature. Defaults to 0.2."),
-        maxTokens: z.number().int().positive().max(8192).optional().describe("Maximum output tokens. Defaults to 800."),
+        maxTokens: z.number().int().positive().max(131072).optional().describe("Optional output token cap. Omitted by default."),
         responseFormat: z.enum(["text", "json_object"]).optional().describe("Request text or JSON object output."),
         includeUsage: z.boolean().optional().describe("Append provider usage metadata when available."),
         requestTimeoutMs: z.number().int().positive().max(300000).optional().describe("Abort the provider request after this many milliseconds."),

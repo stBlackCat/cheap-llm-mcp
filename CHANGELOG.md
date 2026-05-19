@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Updated the Xiaomi MiMo preset to the current `https://api.mimo-v2.com/v1` endpoint and `api-key` authentication shown in the official curl example.
+- Made setup authentication choices clearer for provider presets and reject likely API-key fragments entered as header/prefix fields.
+- Stopped sending a default `max_tokens` cap unless `maxTokens` is explicitly provided, and raised the tool schema cap for large compatible models.
+- Added `CHEAP_LLM_DEFAULT_BODY` / `SIMPLE_LLM_DEFAULT_BODY` support for provider-specific OpenAI-compatible request parameters.
+- Improved MiMo V2.5 Pro behavior with low reasoning defaults, clearer reasoning-only response diagnostics, and less fragile setup pings.
+
 ## 0.1.3
 
 - Made the GitHub homepage README Chinese-first with a separate English docs link.

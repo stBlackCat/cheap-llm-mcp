@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildClaudeCommand, buildCodexCommand, commandToString, commandsForSetup, envPairsForProvider } from "../src/setup.js";
+import {
+  buildClaudeCommand,
+  buildCodexCommand,
+  commandToString,
+  commandsForSetup,
+  envPairsForProvider,
+  validateProviderAnswers
+} from "../src/setup.js";
 
 test("builds Claude Code npx install command", () => {
   const command = buildClaudeCommand({ apiKey: "sk-test", baseUrl: "https://api.example.com/v1", model: "cheap-model" });
@@ -26,10 +33,10 @@ test("redacts API keys in displayed commands", () => {
 test("builds Xiaomi MiMo preset config", () => {
   const command = buildCodexCommand({ preset: "mimo", apiKey: "mimo-test-key" });
   const displayed = commandToString(command, { redactSecrets: true });
-  assert.equal(displayed.includes("CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_BASE_URL=https://api.mimo-v2.com/v1"), true);
   assert.equal(displayed.includes("CHEAP_LLM_MODEL=mimo-v2.5-pro"), true);
-  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=Authorization"), true);
-  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=Bearer"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=api-key"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=none"), true);
   assert.equal(displayed.includes("mimo-test-key"), false);
 });
 
@@ -50,11 +57,24 @@ test("builds runtime env for api-key header connectivity checks", () => {
     apiKeyHeader: "api-key",
     apiKeyPrefix: "none"
   });
-  assert.equal(env.CHEAP_LLM_BASE_URL, "https://api.xiaomimimo.com/v1");
+  assert.equal(env.CHEAP_LLM_BASE_URL, "https://api.mimo-v2.com/v1");
   assert.equal(env.CHEAP_LLM_MODEL, "mimo-v2.5-pro");
   assert.equal(env.CHEAP_LLM_API_KEY_HEADER, "api-key");
   assert.equal(env.CHEAP_LLM_API_KEY_PREFIX, "none");
   assert.equal(env.CHEAP_LLM_API_KEY, "mimo-test-key");
+});
+
+test("rejects likely token fragments entered as auth header settings", () => {
+  assert.throws(
+    () =>
+      validateProviderAnswers({
+        preset: "mimo",
+        apiKeyHeader: "tp",
+        apiKeyPrefix: "ctyxa8rn1ttmqnc5vg2ulh9257gij6zwkeewezkt2k276pc0",
+        apiKey: "tp-redacted"
+      }),
+    /token fragments/
+  );
 });
 
 test("setup dry run can target both clients", () => {

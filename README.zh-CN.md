@@ -104,7 +104,7 @@ CHEAP_LLM_BASE_URL=https://api.deepseek.com
 CHEAP_LLM_MODEL=deepseek-v4-flash
 
 # Xiaomi MiMo
-CHEAP_LLM_BASE_URL=https://api.xiaomimimo.com/v1
+CHEAP_LLM_BASE_URL=https://api.mimo-v2.com/v1
 CHEAP_LLM_MODEL=mimo-v2.5-pro
 
 # Qwen / 阿里云百炼
@@ -116,16 +116,24 @@ CHEAP_LLM_BASE_URL=https://example.com/v1
 CHEAP_LLM_MODEL=model-id
 ```
 
-DeepSeek 使用 `Authorization: Bearer ...`，接口是 `https://api.deepseek.com/chat/completions`。Xiaomi MiMo 的 OpenAI-compatible 接口是 `https://api.xiaomimimo.com/v1/chat/completions`；小米文档同时支持 `Authorization: Bearer ...` 和 `api-key` 头。如果你要切到 `api-key` 头，配置：
+DeepSeek 使用 `Authorization: Bearer ...`，接口是 `https://api.deepseek.com/chat/completions`。Xiaomi MiMo 的 OpenAI-compatible 接口是 `https://api.mimo-v2.com/v1/chat/completions`；当前官方 curl 示例使用 `api-key` 头：
 
 ```bash
 CHEAP_LLM_API_KEY_HEADER=api-key
 CHEAP_LLM_API_KEY_PREFIX=none
 ```
 
+如果你的 MiMo token-plan 账号给的是中国区网关，也可以把 base URL 填为 `https://token-plan-cn.xiaomimimo.com/v1`，鉴权通常使用 `Authorization: Bearer ...`。MiMo V2.5 Pro 是 reasoning 模型，MCP 会默认带上 `reasoning_effort=low`；如果你手动覆盖参数，不要把 `maxTokens` 设得太小，否则可能只返回 `reasoning_content`。
+
 Qwen / 阿里云百炼使用 DashScope OpenAI-compatible endpoint：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`，默认模型是 `qwen-plus`。
 
-参考文档：[DeepSeek API](https://api-docs.deepseek.com/zh-cn/)、[Xiaomi MiMo 首次调用 API](https://platform.xiaomimimo.com/docs/zh-CN/quick-start/first-api-call) 和 [Alibaba Cloud Model Studio Qwen API](https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api)。
+MCP 不会默认给输出设置 `max_tokens`；只有调用工具时显式传 `maxTokens` 才会限制输出。需要兼容不同 OpenAI-compatible 网关的扩展参数时，可以配置：
+
+```bash
+CHEAP_LLM_DEFAULT_BODY={"reasoning_effort":"low"}
+```
+
+参考文档：[DeepSeek API](https://api-docs.deepseek.com/zh-cn/)、[Xiaomi MiMo 首次调用 API](https://www.mimo-v2.com/zh/docs/quick-start/first-api-call) 和 [Alibaba Cloud Model Studio Qwen API](https://www.alibabacloud.com/help/en/model-studio/use-qwen-by-calling-api)。
 
 高级用户仍然可以用 `SIMPLE_LLM_PROVIDERS` 配多个具名 provider，但默认体验就是一个便宜的 OpenAI-compatible endpoint。
 

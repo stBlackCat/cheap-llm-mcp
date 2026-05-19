@@ -31,6 +31,22 @@ export function endpointFor(provider: ProviderConfig): string {
   return `${normalizeBaseUrl(provider.baseUrl)}${normalizePath(provider.chatPath)}`;
 }
 
+function envJsonObject(name: string, source: NodeJS.ProcessEnv = process.env): Record<string, unknown> | undefined {
+  const raw = env(name, source);
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch (error) {
+    throw new Error(`Invalid ${name} JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  throw new Error(`Invalid ${name}: expected a JSON object.`);
+}
+
 export function authHeadersFor(provider: ProviderConfig, apiKey: string): Record<string, string> {
   const header = provider.apiKeyHeader ?? "Authorization";
   const rawPrefix = provider.apiKeyPrefix;
@@ -57,6 +73,7 @@ export function builtInProviders(source: NodeJS.ProcessEnv = process.env): Provi
       apiKeyHeader: env("CHEAP_LLM_API_KEY_HEADER", source),
       apiKeyPrefix: env("CHEAP_LLM_API_KEY_PREFIX", source),
       model: env("CHEAP_LLM_MODEL", source) ?? "deepseek-v4-flash",
+      defaultBody: envJsonObject("CHEAP_LLM_DEFAULT_BODY", source) ?? envJsonObject("SIMPLE_LLM_DEFAULT_BODY", source),
       timeoutMs: envNumber("CHEAP_LLM_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
     },
     {
@@ -73,12 +90,13 @@ export function builtInProviders(source: NodeJS.ProcessEnv = process.env): Provi
     },
     {
       name: "mimo",
-      baseUrl: env("MIMO_BASE_URL", source) ?? "https://api.xiaomimimo.com/v1",
+      baseUrl: env("MIMO_BASE_URL", source) ?? "https://api.mimo-v2.com/v1",
       chatPath: env("MIMO_CHAT_PATH", source),
       apiKeyEnv: "MIMO_API_KEY",
-      apiKeyHeader: env("MIMO_API_KEY_HEADER", source),
-      apiKeyPrefix: env("MIMO_API_KEY_PREFIX", source),
+      apiKeyHeader: env("MIMO_API_KEY_HEADER", source) ?? "api-key",
+      apiKeyPrefix: env("MIMO_API_KEY_PREFIX", source) ?? "none",
       model: env("MIMO_MODEL", source) ?? "mimo-v2.5-pro",
+      defaultBody: envJsonObject("MIMO_DEFAULT_BODY", source),
       timeoutMs: envNumber("MIMO_TIMEOUT_MS", envNumber("SIMPLE_LLM_TIMEOUT_MS", 60000, source), source)
     },
     {

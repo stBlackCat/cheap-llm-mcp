@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { allProviders, authHeadersFor, endpointFor, resolveProvider } from "../src/providers.js";
+import { formatFetchError } from "../src/chat.js";
 
 test("loads generic cheap provider plus compatibility built-ins", () => {
   const providers = allProviders({});
@@ -17,8 +18,8 @@ test("loads generic cheap provider plus compatibility built-ins", () => {
 
 test("uses Xiaomi MiMo OpenAI-compatible defaults", () => {
   const mimo = resolveProvider("mimo", {});
-  assert.equal(endpointFor(mimo), "https://api.xiaomimimo.com/v1/chat/completions");
-  assert.deepEqual(authHeadersFor(mimo, "test-key"), { Authorization: "Bearer test-key" });
+  assert.equal(endpointFor(mimo), "https://api.mimo-v2.com/v1/chat/completions");
+  assert.deepEqual(authHeadersFor(mimo, "test-key"), { "api-key": "test-key" });
 });
 
 test("supports api-key auth header without bearer prefix", () => {
@@ -27,6 +28,23 @@ test("supports api-key auth header without bearer prefix", () => {
     CHEAP_LLM_API_KEY_PREFIX: "none"
   });
   assert.deepEqual(authHeadersFor(cheap, "test-key"), { "api-key": "test-key" });
+});
+
+test("loads default request body from environment JSON", () => {
+  const cheap = resolveProvider("cheap", {
+    CHEAP_LLM_DEFAULT_BODY: JSON.stringify({ reasoning_effort: "low" })
+  });
+  assert.deepEqual(cheap.defaultBody, { reasoning_effort: "low" });
+});
+
+test("rejects invalid default request body JSON", () => {
+  assert.throws(
+    () =>
+      resolveProvider("cheap", {
+        CHEAP_LLM_DEFAULT_BODY: "[]"
+      }),
+    /expected a JSON object/
+  );
 });
 
 test("loads custom OpenAI-compatible provider", () => {
@@ -65,4 +83,14 @@ test("allows http providers when explicitly enabled", () => {
     SIMPLE_LLM_PROVIDERS: JSON.stringify([{ name: "local", baseUrl: "http://localhost:1234", model: "local" }])
   });
   assert.ok(providers.some((provider) => provider.name === "local"));
+});
+
+test("includes fetch cause details in provider network errors", () => {
+  const error = new TypeError("fetch failed", {
+    cause: Object.assign(new Error("getaddrinfo ENOTFOUND api.example.invalid"), { code: "ENOTFOUND" })
+  });
+  const formatted = formatFetchError(error);
+  assert.match(formatted, /fetch failed/);
+  assert.match(formatted, /ENOTFOUND/);
+  assert.match(formatted, /getaddrinfo/);
 });

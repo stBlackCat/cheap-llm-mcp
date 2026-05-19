@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRequestBody } from "../src/chat.js";
+import { buildRequestBody, stringifyResult } from "../src/chat.js";
 import { assertSafeToSend, CHINESE_DEFAULT_SYSTEM_PROMPT, redactError, STABILITY_DEFAULT_SYSTEM_PROMPT } from "../src/safety.js";
 
 test("injects Chinese default system prompt", () => {
@@ -16,6 +16,8 @@ test("injects Chinese default system prompt", () => {
   assert.equal(messages[0].role, "system");
   assert.equal(messages[0].content, STABILITY_DEFAULT_SYSTEM_PROMPT);
   assert.equal(messages[1].content, CHINESE_DEFAULT_SYSTEM_PROMPT);
+  assert.match(messages[1].content, /默认使用简体中文回答/);
+  assert.match(messages[1].content, /文件路径/);
 });
 
 test("can disable Chinese default system prompt", () => {
@@ -59,6 +61,58 @@ test("can disable stability default system prompt", () => {
   );
   const messages = body.messages as Array<{ role: string; content: string }>;
   assert.equal(messages[0].content, CHINESE_DEFAULT_SYSTEM_PROMPT);
+});
+
+test("does not cap output tokens unless maxTokens is provided", () => {
+  const body = buildRequestBody(
+    {
+      prompt: "Summarize this",
+      approvedForExternalApi: true,
+      dataClassification: "public"
+    },
+    {}
+  );
+  assert.equal("max_tokens" in body, false);
+});
+
+test("defaults MiMo v2.5 requests to low reasoning effort", () => {
+  const body = buildRequestBody(
+    {
+      prompt: "Reply ok",
+      approvedForExternalApi: true,
+      dataClassification: "public"
+    },
+    {
+      CHEAP_LLM_MODEL: "mimo-v2.5-pro"
+    }
+  );
+  assert.equal(body.reasoning_effort, "low");
+});
+
+test("lets caller override MiMo reasoning effort", () => {
+  const body = buildRequestBody(
+    {
+      prompt: "Reply ok",
+      extraBody: { reasoning_effort: "medium" },
+      approvedForExternalApi: true,
+      dataClassification: "public"
+    },
+    {
+      CHEAP_LLM_MODEL: "mimo-v2.5-pro"
+    }
+  );
+  assert.equal(body.reasoning_effort, "medium");
+});
+
+test("explains reasoning-only provider responses", () => {
+  const text = stringifyResult(
+    {
+      choices: [{ message: { content: "", reasoning_content: "thinking only" }, finish_reason: "length" }],
+      model: "mimo-v2.5-pro"
+    },
+    false
+  );
+  assert.match(text, /reasoning_content but no final message content/);
 });
 
 test("rejects missing external API approval", () => {

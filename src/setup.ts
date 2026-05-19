@@ -5,6 +5,7 @@ import { callChatCompletion } from "./chat.js";
 
 type Client = "claude" | "codex";
 type ProviderPreset = "deepseek" | "mimo" | "qwen" | "custom";
+type AuthMode = "default" | "api-key" | "bearer" | "custom";
 
 export type ProviderAnswers = {
   preset?: ProviderPreset;
@@ -34,11 +35,11 @@ const PROVIDER_PRESETS: Record<ProviderPreset, Required<Pick<ProviderAnswers, "b
     apiKeyPrefix: "Bearer"
   },
   mimo: {
-    baseUrl: "https://api.xiaomimimo.com/v1",
+    baseUrl: "https://api.mimo-v2.com/v1",
     model: "mimo-v2.5-pro",
     chatPath: "/chat/completions",
-    apiKeyHeader: "Authorization",
-    apiKeyPrefix: "Bearer"
+    apiKeyHeader: "api-key",
+    apiKeyPrefix: "none"
   },
   qwen: {
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -60,7 +61,44 @@ function isSecretName(name: string): boolean {
   return /(TOKEN|SECRET|PASSWORD)$/i.test(name) || /(^|_)API_?KEY$/i.test(name);
 }
 
+function looksLikeTokenFragment(value: string | undefined): boolean {
+  return Boolean(value && /^[A-Za-z0-9_\-.]{20,}$/.test(value));
+}
+
+function providerExtraBody(answer: ProviderAnswers): Record<string, unknown> | undefined {
+  const model = answer.model ?? PROVIDER_PRESETS[answer.preset ?? "deepseek"].model;
+  if (/mimo-v2\.5/i.test(model)) {
+    return {
+      reasoning_effort: "low"
+    };
+  }
+  return undefined;
+}
+
+export function validateProviderAnswers(answer: ProviderAnswers): void {
+  const preset = answer.preset ?? "deepseek";
+  const defaults = PROVIDER_PRESETS[preset];
+  const apiKeyHeader = answer.apiKeyHeader ?? defaults.apiKeyHeader;
+  const apiKeyPrefix = answer.apiKeyPrefix ?? defaults.apiKeyPrefix;
+
+  if (!/^[A-Za-z0-9-]+$/.test(apiKeyHeader)) {
+    throw new Error(`Invalid API key header "${apiKeyHeader}". Use a header name such as Authorization or api-key.`);
+  }
+
+  if (
+    preset !== "custom" &&
+    apiKeyHeader !== defaults.apiKeyHeader &&
+    apiKeyHeader !== "api-key" &&
+    looksLikeTokenFragment(apiKeyPrefix)
+  ) {
+    throw new Error(
+      `The API key header/prefix look like token fragments. For ${preset}, leave the auth mode at the default and paste the full API key only in the API key field.`
+    );
+  }
+}
+
 export function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
+  validateProviderAnswers(answer);
   const preset = PROVIDER_PRESETS[answer.preset ?? "deepseek"];
   const env: Record<string, string> = {
     CHEAP_LLM_BASE_URL: answer.baseUrl ?? preset.baseUrl,
@@ -159,6 +197,53 @@ async function ask(prompt: string, defaultValue = ""): Promise<string> {
   }
 }
 
+async function collectAuthFields(preset: ProviderPreset): Promise<Pick<ProviderAnswers, "apiKeyHeader" | "apiKeyPrefix">> {
+  const defaults = PROVIDER_PRESETS[preset];
+  if (preset !== "custom") {
+    const defaultAuthLabel =
+      defaults.apiKeyPrefix === "none"
+        ? `Default ${defaults.apiKeyHeader} header without prefix`
+        : `Default ${defaults.apiKeyHeader} ${defaults.apiKeyPrefix}`;
+    const alternateAuthLabel = defaults.apiKeyHeader === "api-key" ? "Authorization Bearer" : "api-key header without prefix";
+    const authChoice = await choose(
+      "Authentication mode?",
+      [defaultAuthLabel, alternateAuthLabel, "Custom header/prefix"],
+      0
+    );
+    const mode: AuthMode =
+      authChoice === "api-key header without prefix"
+        ? "api-key"
+        : authChoice === "Authorization Bearer"
+          ? "bearer"
+          : authChoice === "Custom header/prefix"
+            ? "custom"
+            : "default";
+    if (mode === "default") {
+      return {
+        apiKeyHeader: defaults.apiKeyHeader,
+        apiKeyPrefix: defaults.apiKeyPrefix
+      };
+    }
+    if (mode === "api-key") {
+      return {
+        apiKeyHeader: "api-key",
+        apiKeyPrefix: "none"
+      };
+    }
+    if (mode === "bearer") {
+      return {
+        apiKeyHeader: "Authorization",
+        apiKeyPrefix: "Bearer"
+      };
+    }
+  }
+
+  return {
+    apiKeyHeader: await ask("API key header name", defaults.apiKeyHeader),
+    apiKeyPrefix: await ask("API key prefix (Bearer, or none for raw api-key headers)", defaults.apiKeyPrefix)
+  };
+}
+
 export async function collectSetupOptions(): Promise<SetupOptions> {
   const clientChoice = await choose("Which client should be configured?", ["Claude Code", "Codex", "Both"], 2);
   const providerChoice = await choose("Provider preset?", ["DeepSeek", "Xiaomi MiMo", "Qwen / Alibaba Cloud Bailian", "Custom OpenAI-compatible"], 0);
@@ -174,8 +259,7 @@ export async function collectSetupOptions(): Promise<SetupOptions> {
   const baseUrl = await ask("OpenAI-compatible base URL", defaults.baseUrl);
   const model = await ask("Model id", defaults.model);
   const chatPath = await ask("Chat completions path", defaults.chatPath);
-  const apiKeyHeader = await ask("API key header", defaults.apiKeyHeader);
-  const apiKeyPrefix = await ask("API key prefix (use none for headers like api-key)", defaults.apiKeyPrefix);
+  const { apiKeyHeader, apiKeyPrefix } = await collectAuthFields(preset);
   const apiKey = await ask("API key (leave blank if you will fill it manually in the client config)");
   const testConnection = Boolean(apiKey) && (await choose("Send a tiny API connectivity test now?", ["Yes", "No"], 0)) === "Yes";
   const execute = (await choose("Execute these install commands now?", ["Yes", "No"], 0)) === "Yes";
@@ -204,8 +288,9 @@ export async function testProviderConnection(answer: ProviderAnswers): Promise<s
       prompt: 'Reply exactly: cheap-llm-mcp-ok',
       system: "This is a CLI connectivity check. Reply with the exact requested text only.",
       temperature: 0,
-      maxTokens: 16,
+      maxTokens: 512,
       includeUsage: true,
+      extraBody: providerExtraBody(answer),
       approvedForExternalApi: true,
       dataClassification: "public"
     },
@@ -216,6 +301,7 @@ export async function testProviderConnection(answer: ProviderAnswers): Promise<s
 export async function runSetup(options?: SetupOptions): Promise<number> {
   const selected = options ?? (await collectSetupOptions());
   const commands = commandsForSetup(selected);
+  let connectionOk = true;
   output.write("\nCommands:\n");
   commands.forEach((command) => output.write(`  ${commandToString(command, { redactSecrets: true })}\n`));
 
@@ -228,10 +314,21 @@ export async function runSetup(options?: SetupOptions): Promise<number> {
         const result = await testProviderConnection(selected);
         output.write(`API connectivity OK:\n${result.slice(0, 800)}\n`);
       } catch (error) {
+        connectionOk = false;
         const message = error instanceof Error ? error.message : String(error);
         output.write(`API connectivity test failed:\n${message}\n`);
-        output.write("The MCP config was still generated below. Fix the provider settings or API key, then run setup again.\n");
+        output.write("Fix the provider settings, API key, network, proxy, or TLS issue, then run setup again.\n");
       }
+    }
+  }
+
+  if (selected.execute && !connectionOk && !options) {
+    const installAnyway = (await choose("API test failed. Install this MCP config anyway?", ["No", "Yes"], 0)) === "Yes";
+    if (!installAnyway) {
+      output.write("\nSkipped installation because the connectivity test failed.\n");
+      output.write("\nManual Codex fallback:\n");
+      output.write(codexTomlSnippet(selected, { redactSecrets: true }));
+      return 1;
     }
   }
 
