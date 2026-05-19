@@ -50,6 +50,22 @@ test("keeps caller system prompt after Chinese default", () => {
   assert.equal(messages[2].content, "Return bullets.");
 });
 
+test("injects task-specific guidance for code review delegation", () => {
+  const body = buildRequestBody(
+    {
+      prompt: "Review this diff",
+      taskType: "code_review",
+      approvedForExternalApi: true,
+      dataClassification: "public"
+    },
+    {}
+  );
+  const messages = body.messages as Array<{ role: string; content: string }>;
+  assert.match(messages[2].content, /Task type: code_review/);
+  assert.match(messages[2].content, /Prioritize concrete bugs/);
+  assert.equal(messages[3].role, "user");
+});
+
 test("can disable stability default system prompt", () => {
   const body = buildRequestBody(
     {

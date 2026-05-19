@@ -9,9 +9,9 @@
 
 还在为 GPT Plus 的额度发愁？还在心疼自己的 Claude 会员 token 太贵？
 
-这个 MCP 可以解决你的大部分小任务成本问题：用便宜的 AI 做便宜的事情，让贵的主模型继续负责统筹、审查和最终决策。
+这个 MCP 可以解决你的大部分分流问题：把可自包含的草稿、审查、推理和整理工作交给便宜或国产大模型，让主模型继续负责统筹、工具执行和最终决策。
 
-`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码等低风险任务交给国产低成本模型分流处理。内置预设包括 DeepSeek、Xiaomi MiMo 和 Qwen / 阿里云百炼，也可以接入你自己填写的 OpenAI-compatible API。
+`cheap-llm-mcp` 是一个本地 stdio MCP server，适用于 Claude Code、Codex 和其他 MCP 客户端。它可以把摘要、翻译、分类、抽取、小段代码、代码审查草稿、方案推理、设计批判和测试建议等可自包含任务交给国产模型分流处理。内置预设包括 DeepSeek、Xiaomi MiMo 和 Qwen / 阿里云百炼，也可以接入你自己填写的 OpenAI-compatible API。
 
 ## 快速开始
 

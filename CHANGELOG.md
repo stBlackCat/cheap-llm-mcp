@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Fixed Xiaomi token-plan setup by defaulting `*.xiaomimimo.com/v1` endpoints to `Authorization: Bearer`.
+- Normalized the known MiMo V2.5 Pro model id during setup so `MiMo-V2.5-Pro` becomes `mimo-v2.5-pro`.
+
 ## Unreleased
 
 - Updated the Xiaomi MiMo preset to the current `https://api.mimo-v2.com/v1` endpoint and `api-key` authentication shown in the official curl example.

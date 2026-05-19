@@ -65,8 +65,39 @@ function looksLikeTokenFragment(value: string | undefined): boolean {
   return Boolean(value && /^[A-Za-z0-9_\-.]{20,}$/.test(value));
 }
 
+function isMimoTokenPlanBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) {
+    return false;
+  }
+  try {
+    const url = new URL(baseUrl);
+    return /(^|\.)xiaomimimo\.com$/i.test(url.host) && /^\/v1\/?$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function normalizeModelId(answer: ProviderAnswers): string | undefined {
+  if (answer.preset === "mimo" && /^mimo-v2\.5-pro$/i.test(answer.model ?? "")) {
+    return "mimo-v2.5-pro";
+  }
+  return answer.model;
+}
+
+function providerDefaults(answer: ProviderAnswers): Required<Pick<ProviderAnswers, "baseUrl" | "model" | "chatPath" | "apiKeyHeader" | "apiKeyPrefix">> {
+  const defaults = PROVIDER_PRESETS[answer.preset ?? "deepseek"];
+  if (answer.preset === "mimo" && isMimoTokenPlanBaseUrl(answer.baseUrl)) {
+    return {
+      ...defaults,
+      apiKeyHeader: "Authorization",
+      apiKeyPrefix: "Bearer"
+    };
+  }
+  return defaults;
+}
+
 function providerExtraBody(answer: ProviderAnswers): Record<string, unknown> | undefined {
-  const model = answer.model ?? PROVIDER_PRESETS[answer.preset ?? "deepseek"].model;
+  const model = normalizeModelId(answer) ?? providerDefaults(answer).model;
   if (/mimo-v2\.5/i.test(model)) {
     return {
       reasoning_effort: "low"
@@ -77,7 +108,7 @@ function providerExtraBody(answer: ProviderAnswers): Record<string, unknown> | u
 
 export function validateProviderAnswers(answer: ProviderAnswers): void {
   const preset = answer.preset ?? "deepseek";
-  const defaults = PROVIDER_PRESETS[preset];
+  const defaults = providerDefaults(answer);
   const apiKeyHeader = answer.apiKeyHeader ?? defaults.apiKeyHeader;
   const apiKeyPrefix = answer.apiKeyPrefix ?? defaults.apiKeyPrefix;
 
@@ -99,10 +130,10 @@ export function validateProviderAnswers(answer: ProviderAnswers): void {
 
 export function envPairsForProvider(answer: ProviderAnswers): Record<string, string> {
   validateProviderAnswers(answer);
-  const preset = PROVIDER_PRESETS[answer.preset ?? "deepseek"];
+  const preset = providerDefaults(answer);
   const env: Record<string, string> = {
     CHEAP_LLM_BASE_URL: answer.baseUrl ?? preset.baseUrl,
-    CHEAP_LLM_MODEL: answer.model ?? preset.model,
+    CHEAP_LLM_MODEL: normalizeModelId(answer) ?? preset.model,
     CHEAP_LLM_CHAT_PATH: answer.chatPath ?? preset.chatPath,
     CHEAP_LLM_API_KEY_HEADER: answer.apiKeyHeader ?? preset.apiKeyHeader,
     CHEAP_LLM_API_KEY_PREFIX: answer.apiKeyPrefix ?? preset.apiKeyPrefix,
@@ -197,8 +228,9 @@ async function ask(prompt: string, defaultValue = ""): Promise<string> {
   }
 }
 
-async function collectAuthFields(preset: ProviderPreset): Promise<Pick<ProviderAnswers, "apiKeyHeader" | "apiKeyPrefix">> {
-  const defaults = PROVIDER_PRESETS[preset];
+async function collectAuthFields(answer: Pick<ProviderAnswers, "preset" | "baseUrl">): Promise<Pick<ProviderAnswers, "apiKeyHeader" | "apiKeyPrefix">> {
+  const preset = answer.preset ?? "deepseek";
+  const defaults = providerDefaults(answer);
   if (preset !== "custom") {
     const defaultAuthLabel =
       defaults.apiKeyPrefix === "none"
@@ -257,9 +289,9 @@ export async function collectSetupOptions(): Promise<SetupOptions> {
           : "deepseek";
   const defaults = PROVIDER_PRESETS[preset];
   const baseUrl = await ask("OpenAI-compatible base URL", defaults.baseUrl);
-  const model = await ask("Model id", defaults.model);
+  const model = normalizeModelId({ preset, model: await ask("Model id", defaults.model) });
   const chatPath = await ask("Chat completions path", defaults.chatPath);
-  const { apiKeyHeader, apiKeyPrefix } = await collectAuthFields(preset);
+  const { apiKeyHeader, apiKeyPrefix } = await collectAuthFields({ preset, baseUrl });
   const apiKey = await ask("API key (leave blank if you will fill it manually in the client config)");
   const testConnection = Boolean(apiKey) && (await choose("Send a tiny API connectivity test now?", ["Yes", "No"], 0)) === "Yes";
   const execute = (await choose("Execute these install commands now?", ["Yes", "No"], 0)) === "Yes";

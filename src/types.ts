@@ -1,4 +1,16 @@
 export type DataClassification = "public" | "internal" | "private" | "sensitive";
+export type TaskType =
+  | "general"
+  | "summarize"
+  | "rewrite"
+  | "translate"
+  | "classify"
+  | "extract"
+  | "code_snippet"
+  | "code_review"
+  | "reasoning"
+  | "design_critique"
+  | "test_suggestions";
 
 export type ProviderConfig = {
   name: string;
@@ -38,6 +50,7 @@ export type ChatMessage = {
 export type AskSimpleModelInput = {
   provider?: string;
   model?: string;
+  taskType?: TaskType;
   system?: string;
   prompt: string;
   temperature?: number;

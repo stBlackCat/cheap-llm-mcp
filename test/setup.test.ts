@@ -40,6 +40,27 @@ test("builds Xiaomi MiMo preset config", () => {
   assert.equal(displayed.includes("mimo-test-key"), false);
 });
 
+test("uses Authorization Bearer defaults for Xiaomi token-plan endpoint", () => {
+  const command = buildCodexCommand({
+    preset: "mimo",
+    baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
+    apiKey: "mimo-test-key"
+  });
+  const displayed = commandToString(command, { redactSecrets: true });
+  assert.equal(displayed.includes("CHEAP_LLM_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_HEADER=Authorization"), true);
+  assert.equal(displayed.includes("CHEAP_LLM_API_KEY_PREFIX=Bearer"), true);
+});
+
+test("normalizes known Xiaomi MiMo model casing", () => {
+  const env = envPairsForProvider({
+    preset: "mimo",
+    model: "MiMo-V2.5-Pro",
+    apiKey: "mimo-test-key"
+  });
+  assert.equal(env.CHEAP_LLM_MODEL, "mimo-v2.5-pro");
+});
+
 test("builds Qwen preset config", () => {
   const command = buildCodexCommand({ preset: "qwen", apiKey: "qwen-test-key" });
   const displayed = commandToString(command, { redactSecrets: true });

@@ -11,7 +11,7 @@ Still worried about GPT Plus limits? Still watching your Claude subscription tok
 
 [Chinese homepage](README.md)
 
-This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. It routes simple, low-risk, self-contained tasks to tested DeepSeek, Xiaomi MiMo, and Qwen / Alibaba Cloud Bailian presets, or to a custom OpenAI-compatible chat completions API. Your main AI still plans, reviews, edits, and decides. The cheap model just handles small drafts.
+This is a local stdio MCP server for Claude Code, Codex, and other MCP clients. It routes self-contained drafting, review, reasoning, summarization, extraction, and test-suggestion work to tested DeepSeek, Xiaomi MiMo, and Qwen / Alibaba Cloud Bailian presets, or to a custom OpenAI-compatible chat completions API. Your main AI still verifies, runs tools, edits files, and makes final decisions.
 
 ## Quickstart
 

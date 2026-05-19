@@ -6,9 +6,26 @@ import { callChatCompletion } from "./chat.js";
 import { envFlag } from "./env.js";
 import { allProviders, providerSetupStatus } from "./providers.js";
 import { maxPromptChars } from "./safety.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 export const SERVER_NAME = "cheap-llm-mcp";
-export const SERVER_VERSION = "0.1.3";
+export const SERVER_VERSION = PACKAGE_VERSION;
+
+const taskTypeSchema = z
+  .enum([
+    "general",
+    "summarize",
+    "rewrite",
+    "translate",
+    "classify",
+    "extract",
+    "code_snippet",
+    "code_review",
+    "reasoning",
+    "design_critique",
+    "test_suggestions"
+  ])
+  .optional();
 
 export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer {
   const server = new McpServer({
@@ -36,13 +53,14 @@ export function createServer(source: NodeJS.ProcessEnv = process.env): McpServer
   server.registerTool(
     "ask_simple_model",
     {
-      title: "Ask a cheap simple-task LLM",
+      title: "Ask a delegated OpenAI-compatible LLM",
       description:
-        "Delegate simple, low-risk tasks to a configured cheap OpenAI-compatible model. Use for summarizing, rewriting, translating, classification, extraction, short regex, or small code snippets. Treat the result as a draft: the host AI must lightly review it against the original task before using it, without sending extra context or asking for a second review unless necessary. Do not use for architecture decisions, risky edits, security-sensitive decisions, or private workspace context unless the user explicitly permits sending that context to the provider.",
+        "Delegate bounded work to a configured OpenAI-compatible model. Use for summarizing, rewriting, translating, classification, extraction, small code drafts, code review drafts, reasoning, design critique, and test suggestions. Treat every result as a draft: the host AI must verify it against the original task and remains responsible for final decisions, tool use, and file edits. Do not send secrets or sensitive data. Private workspace context may be sent only when the user explicitly approves external API use and the prompt passes the safety checks.",
       inputSchema: {
         prompt: z.string().min(1).describe("The exact self-contained task to send to the provider."),
         provider: z.string().optional().describe("Provider name, for example deepseek, qwen, or mimo."),
         model: z.string().optional().describe("Override the provider default model."),
+        taskType: taskTypeSchema.describe("Optional delegation category so the provider gets task-specific guidance."),
         system: z.string().optional().describe("Optional system instruction."),
         approvedForExternalApi: z
           .boolean()
